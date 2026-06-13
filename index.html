@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Castleview Floor</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#111;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;font-family:system-ui,-apple-system,sans-serif}
@@ -190,7 +190,9 @@
 <script>
 const SUPABASE_URL='https://xsgyoovivlehtzrbytaz.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZ3lvb3ZpdmxlaHR6cmJ5dGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDg2MzYsImV4cCI6MjA5Njg4NDYzNn0.6Kb0EnIJ2QmOxecYzbfMHskztPPglgQKS3K9wiCI8EI';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let sb=null;
+try{if(typeof supabase!=='undefined')sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}
+catch(e){console.warn('Supabase init failed, running in local-only mode',e);}
 
 const SWATCHES=['#378ADD','#E24B4A','#639922','#BA7517','#7F77DD','#1D9E75','#D4537E','#D85A30','#5DCAA5','#EF9F27','#aaaaaa','#F0997B'];
 const LAYOUT_VERSION='cv_v2';
@@ -209,6 +211,7 @@ function save(){
   clearTimeout(_saveTimer);_saveTimer=setTimeout(pushToCloud,400);
 }
 async function pushToCloud(){
+  if(!sb)return;
   try{await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null});}
   catch(e){console.warn('Supabase sync error',e);}
 }
@@ -233,6 +236,7 @@ async function load(){
   if(!tables.length)initTables(false);
   // Phase 2: override with authoritative Supabase data
   try{
+    if(!sb)throw new Error('no sb');
     const{data,error}=await sb.from('floor_state').select('*').eq('id',1).single();
     if(data&&!error){
       if(data.servers?.length)servers=data.servers;
@@ -244,6 +248,7 @@ async function load(){
   setupRealtime();
 }
 function setupRealtime(){
+  if(!sb)return;
   sb.channel('floor').on('postgres_changes',{event:'UPDATE',schema:'public',table:'floor_state',filter:'id=eq.1'},p=>{
     const d=p.new;
     servers=d.servers||[];tables=d.tables||[];
