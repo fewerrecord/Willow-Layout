@@ -175,6 +175,10 @@
   <div class="modal" style="width:280px">
     <h3>Edit table</h3>
     <div class="form-group"><label>Label</label><input type="text" id="edit-tbl-label" style="width:100%" maxlength="6"></div>
+    <div class="form-group" id="edit-tbl-size-group">
+      <label>Size <span id="edit-tbl-size-val" style="color:#5dca8a;font-weight:500"></span></label>
+      <input type="range" id="edit-tbl-size" min="14" max="60" step="1" style="width:100%">
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('table-edit-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTableEdit()">Save</button>
@@ -242,8 +246,26 @@ function updateEditButtons(){
   ['btn-delete','btn-rotate','btn-edit-tbl'].forEach(id=>document.getElementById(id).style.display=show?'':'none');
 }
 function rotateSelected(){const t=tables.find(t=>t.id===selectedTable);if(!t||t.shape==='circle')return;t.rotated=!t.rotated;save();drawTables();}
-function editSelected(){const t=tables.find(t=>t.id===selectedTable);if(!t)return;editingTblId=t.id;document.getElementById('edit-tbl-label').value=t.label;document.getElementById('table-edit-modal').classList.add('open');}
-function saveTableEdit(){const t=tables.find(t=>t.id===editingTblId);if(t){t.label=document.getElementById('edit-tbl-label').value.trim()||t.label;}closeModal('table-edit-modal');save();drawTables();}
+function editSelected(){
+  const t=tables.find(t=>t.id===selectedTable);if(!t)return;
+  editingTblId=t.id;
+  document.getElementById('edit-tbl-label').value=t.label;
+  const sz=t.w||20;
+  const slider=document.getElementById('edit-tbl-size');
+  slider.value=sz;
+  document.getElementById('edit-tbl-size-val').textContent=sz+'px';
+  slider.oninput=()=>document.getElementById('edit-tbl-size-val').textContent=slider.value+'px';
+  document.getElementById('table-edit-modal').classList.add('open');
+}
+function saveTableEdit(){
+  const t=tables.find(t=>t.id===editingTblId);
+  if(t){
+    t.label=document.getElementById('edit-tbl-label').value.trim()||t.label;
+    const sz=parseInt(document.getElementById('edit-tbl-size').value);
+    t.w=sz;t.h=sz;
+  }
+  closeModal('table-edit-modal');save();drawTables();
+}
 
 function renderFloorPicker(){
   const next=getNext(),last=getLastSrv();
@@ -280,8 +302,8 @@ function pickEditColor(c,el){editingSrvColor=c;document.querySelectorAll('#edit-
 function saveServerEdit(){const s=servers.find(s=>s.id===editingSrvId);if(s){s.name=document.getElementById('edit-srv-name').value.trim()||s.name;s.color=editingSrvColor;}closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();}
 function deleteServer(){tables.forEach(t=>{if(t.server===editingSrvId)t.server=null;});servers=servers.filter(s=>s.id!==editingSrvId);if(selectedServer===editingSrvId)selectedServer=null;const a=servers.filter(s=>s.active);rotationIndex=rotationIndex%Math.max(a.length,1);closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();}
 
-function mk(id,shape,x,y,label,rotated){return{id,shape,x,y,label,rotated:!!rotated,server:null,dirty:false,paid:false,isBar:false};}
-function mkB(id,x,y,label){return{id,shape:'circle',x,y,label,rotated:false,server:null,dirty:false,paid:false,isBar:true};}
+function mk(id,shape,x,y,label,rotated){return{id,shape,x,y,label,rotated:!!rotated,w:shape==='circle'?20:44,h:shape==='circle'?20:34,server:null,dirty:false,paid:false,isBar:false};}
+function mkB(id,x,y,label){return{id,shape:'circle',x,y,label,rotated:false,w:18,h:18,server:null,dirty:false,paid:false,isBar:true};}
 
 function initTables(doSave=true){
   tables=[
@@ -327,7 +349,7 @@ function initTables(doSave=true){
   drawTables();
 }
 
-function addTable(shape){tables.push({id:Date.now(),shape,x:100,y:100,label:`T${tables.filter(t=>!t.isBar).length+1}`,rotated:false,server:null,dirty:false,paid:false,isBar:false});save();drawTables();}
+function addTable(shape){tables.push({id:Date.now(),shape,x:100,y:100,label:`T${tables.filter(t=>!t.isBar).length+1}`,rotated:false,w:shape==='circle'?20:44,h:shape==='circle'?20:34,server:null,dirty:false,paid:false,isBar:false});save();drawTables();}
 function deleteSelected(){if(selectedTable==null)return;const t=tables.find(t=>t.id===selectedTable);if(t&&t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}tables=tables.filter(t=>t.id!==selectedTable);selectedTable=null;updateEditButtons();save();renderFloorPicker();renderServerList();drawTables();}
 function resetLayout(){tables.forEach(t=>{t.server=null;t.dirty=false;t.paid=false;});servers.forEach(s=>s.tables=0);selectedTable=null;selectedServer=null;updateEditButtons();save();renderFloorPicker();renderServerList();drawTables();}
 
@@ -348,6 +370,9 @@ function screenToCanvas(sx,sy){
   return{x:(px-vpX)/vpZ,y:(py-vpY)/vpZ};
 }
 
+function tR(t){return t.w||20;}
+function tHalf(t){return{hw:t.shape==='circle'?tR(t):(t.w||44)/2,hh:t.shape==='circle'?tR(t):(t.h||34)/2};}
+
 function drawTables(){
   ctx.clearRect(0,0,CW,CH);
   ctx.save();
@@ -363,57 +388,87 @@ function drawTables(){
   tables.forEach(t=>{
     const isSel=editMode&&t.id===selectedTable;
     const srv=t.server?servers.find(s=>s.id===t.server):null;
+    const R=tR(t);
+    const hw=(t.w||44)/2,hh=(t.h||34)/2;
     ctx.save();
     if(t.dirty){ctx.fillStyle='#2a2000';ctx.strokeStyle='#c08000';ctx.lineWidth=1.5/vpZ;}
     else if(t.paid){ctx.fillStyle='#2e2e2e';ctx.strokeStyle=isSel?'#5dca8a':'#444';ctx.lineWidth=(isSel?2.5:1.5)/vpZ;}
     else if(srv){ctx.fillStyle=srv.color;ctx.strokeStyle=isSel?'#fff':srv.color;ctx.lineWidth=(isSel?3:2)/vpZ;}
     else{ctx.fillStyle='#fff';ctx.strokeStyle=isSel?'#5dca8a':'#555';ctx.lineWidth=(isSel?2.5:1)/vpZ;}
 
-    const R=t.isBar?18:20;
     if(t.shape==='circle'){
       ctx.beginPath();ctx.arc(t.x,t.y,R,0,Math.PI*2);ctx.fill();ctx.stroke();
     } else if(t.rotated){
       ctx.beginPath();ctx.moveTo(t.x,t.y-R);ctx.lineTo(t.x+R,t.y);ctx.lineTo(t.x,t.y+R);ctx.lineTo(t.x-R,t.y);ctx.closePath();ctx.fill();ctx.stroke();
     } else {
-      ctx.beginPath();ctx.roundRect(t.x-22,t.y-17,44,34,3);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.roundRect(t.x-hw,t.y-hh,hw*2,hh*2,3);ctx.fill();ctx.stroke();
     }
 
     ctx.textAlign='center';ctx.textBaseline='middle';
     const lbl=t.label;
-    const fs=10/vpZ,fs2=8/vpZ;
+    const fs=Math.max(7,Math.min(12,R*0.55))/vpZ,fs2=Math.max(6,Math.min(9,R*0.4))/vpZ;
+    const yOff=srv||t.dirty||t.paid?R*0.25:0;
     if(t.dirty){
-      ctx.fillStyle='#c08000';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-4);
-      ctx.font=`400 ${fs2}px system-ui,sans-serif`;ctx.fillText('dirty',t.x,t.y+5);
+      ctx.fillStyle='#c08000';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-yOff);
+      ctx.font=`400 ${fs2}px system-ui,sans-serif`;ctx.fillText('dirty',t.x,t.y+yOff);
     } else if(t.paid){
-      ctx.fillStyle='#666';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-4);
-      ctx.font=`400 ${fs2}px system-ui,sans-serif`;ctx.fillStyle='#555';ctx.fillText('paid',t.x,t.y+5);
+      ctx.fillStyle='#666';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-yOff);
+      ctx.font=`400 ${fs2}px system-ui,sans-serif`;ctx.fillStyle='#555';ctx.fillText('paid',t.x,t.y+yOff);
     } else if(srv){
       const tc=hexLuma(srv.color)>160?'#111':'#fff';
-      ctx.fillStyle=tc;ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-4);
-      ctx.font=`600 ${fs2}px system-ui,sans-serif`;ctx.fillText(srv.name.substring(0,6),t.x,t.y+5);
+      ctx.fillStyle=tc;ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-yOff);
+      ctx.font=`600 ${fs2}px system-ui,sans-serif`;ctx.fillText(srv.name.substring(0,6),t.x,t.y+yOff);
     } else {
       ctx.fillStyle='#555';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y);
     }
 
     if(isSel){
       ctx.strokeStyle='#5dca8a';ctx.lineWidth=1.5/vpZ;ctx.setLineDash([4/vpZ,3/vpZ]);
-      if(t.shape==='circle'){ctx.beginPath();ctx.arc(t.x,t.y,R+5,0,Math.PI*2);ctx.stroke();}
-      else if(t.rotated){const r=R+5;ctx.beginPath();ctx.moveTo(t.x,t.y-r);ctx.lineTo(t.x+r,t.y);ctx.lineTo(t.x,t.y+r);ctx.lineTo(t.x-r,t.y);ctx.closePath();ctx.stroke();}
-      else{ctx.beginPath();ctx.roundRect(t.x-27,t.y-22,54,44,5);ctx.stroke();}
+      const pad=6;
+      if(t.shape==='circle'){ctx.beginPath();ctx.arc(t.x,t.y,R+pad,0,Math.PI*2);ctx.stroke();}
+      else if(t.rotated){const r=R+pad;ctx.beginPath();ctx.moveTo(t.x,t.y-r);ctx.lineTo(t.x+r,t.y);ctx.lineTo(t.x,t.y+r);ctx.lineTo(t.x-r,t.y);ctx.closePath();ctx.stroke();}
+      else{ctx.beginPath();ctx.roundRect(t.x-hw-pad,t.y-hh-pad,(hw+pad)*2,(hh+pad)*2,5);ctx.stroke();}
       ctx.setLineDash([]);
+
+      const hs=6/vpZ;
+      ctx.fillStyle='#5dca8a';
+      const handles=getHandlePositions(t);
+      handles.forEach(h=>{ctx.beginPath();ctx.arc(h.x,h.y,hs,0,Math.PI*2);ctx.fill();});
     }
     ctx.restore();
   });
   ctx.restore();
 }
 
+function getHandlePositions(t){
+  const R=tR(t),hw=(t.w||44)/2,hh=(t.h||34)/2;
+  if(t.shape==='circle')return[{x:t.x+R,y:t.y,dir:'se'}];
+  if(t.rotated)return[{x:t.x+R,y:t.y,dir:'se'}];
+  return[
+    {x:t.x+hw,y:t.y,dir:'e'},
+    {x:t.x,y:t.y+hh,dir:'s'},
+    {x:t.x+hw,y:t.y+hh,dir:'se'},
+  ];
+}
+
 function getTableAt(cx,cy){
   for(let i=tables.length-1;i>=0;i--){
-    const t=tables[i];const R=t.isBar?18:20;
+    const t=tables[i];const R=tR(t),hw=(t.w||44)/2,hh=(t.h||34)/2;
     if(t.shape==='circle'){if(Math.hypot(cx-t.x,cy-t.y)<R+3)return t;}
     else if(t.rotated){if(Math.abs(cx-t.x)+Math.abs(cy-t.y)<R+3)return t;}
-    else{if(Math.abs(cx-t.x)<25&&Math.abs(cy-t.y)<20)return t;}
+    else{if(Math.abs(cx-t.x)<hw+3&&Math.abs(cy-t.y)<hh+3)return t;}
   }return null;
+}
+
+let resizing=false,resizeDir='',resizeStartX=0,resizeStartY=0,resizeOrigW=0,resizeOrigH=0;
+
+function getHandleAt(cx,cy){
+  if(!editMode||selectedTable==null)return null;
+  const t=tables.find(t=>t.id===selectedTable);if(!t)return null;
+  const handles=getHandlePositions(t);
+  const hitR=10/vpZ;
+  for(const h of handles){if(Math.hypot(cx-h.x,cy-h.y)<hitR)return h;}
+  return null;
 }
 
 canvas.addEventListener('wheel',e=>{
@@ -430,6 +485,13 @@ canvas.addEventListener('wheel',e=>{
 
 canvas.addEventListener('mousedown',e=>{
   const{x,y}=screenToCanvas(e.clientX,e.clientY);dragMoved=false;
+  const handle=getHandleAt(x,y);
+  if(handle){
+    const t=tables.find(t=>t.id===selectedTable);
+    resizing=true;resizeDir=handle.dir;resizeStartX=x;resizeStartY=y;
+    resizeOrigW=t.w||44;resizeOrigH=t.h||34;
+    return;
+  }
   const hit=getTableAt(x,y);
   if(hit){
     selectedTable=hit.id;
@@ -442,6 +504,15 @@ canvas.addEventListener('mousedown',e=>{
   drawTables();
 });
 canvas.addEventListener('mousemove',e=>{
+  if(resizing){
+    const{x,y}=screenToCanvas(e.clientX,e.clientY);
+    const t=tables.find(t=>t.id===selectedTable);if(!t)return;
+    const dx=x-resizeStartX,dy=y-resizeStartY;
+    if(resizeDir==='e'||resizeDir==='se')t.w=Math.max(14,Math.min(120,resizeOrigW+dx*2));
+    if(resizeDir==='s'||resizeDir==='se')t.h=Math.max(14,Math.min(120,resizeOrigH+dy*2));
+    if(resizeDir==='se'||t.shape==='circle'||t.rotated){const s=Math.max(14,Math.min(120,Math.max(resizeOrigW+dx*2,resizeOrigH+dy*2)));t.w=s;t.h=s;}
+    drawTables();return;
+  }
   if(panning){
     const r=canvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
     vpX=panOriginX+(e.clientX-panStartX)*sx;
@@ -454,6 +525,7 @@ canvas.addEventListener('mousemove',e=>{
   if(t){t.x=x-dragOffX;t.y=y-dragOffY;drawTables();}
 });
 canvas.addEventListener('mouseup',e=>{
+  if(resizing){resizing=false;save();return;}
   if(panning){panning=false;return;}
   if(!dragMoved&&selectedTable!=null){
     const t=tables.find(t=>t.id===selectedTable);
@@ -465,15 +537,21 @@ canvas.addEventListener('mouseup',e=>{
   if(dragging&&dragMoved)save();
   dragging=false;
 });
-canvas.addEventListener('mouseleave',()=>{panning=false;if(dragging&&dragMoved)save();dragging=false;});
+canvas.addEventListener('mouseleave',()=>{if(resizing){resizing=false;save();}panning=false;if(dragging&&dragMoved)save();dragging=false;});
 
 canvas.addEventListener('touchstart',e=>{
   e.preventDefault();
   if(e.touches.length===2){
     pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-    panning=false;dragging=false;return;
+    panning=false;dragging=false;resizing=false;return;
   }
   const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);dragMoved=false;
+  const handle=getHandleAt(x,y);
+  if(handle){
+    const t=tables.find(t=>t.id===selectedTable);
+    resizing=true;resizeDir=handle.dir;resizeStartX=x;resizeStartY=y;
+    resizeOrigW=t.w||44;resizeOrigH=t.h||34;return;
+  }
   const hit=getTableAt(x,y);
   if(hit){
     selectedTable=hit.id;
@@ -485,7 +563,6 @@ canvas.addEventListener('touchstart',e=>{
   }
   drawTables();
 },{passive:false});
-
 canvas.addEventListener('touchmove',e=>{
   e.preventDefault();
   if(e.touches.length===2){
@@ -497,8 +574,16 @@ canvas.addEventListener('touchmove',e=>{
     const newZ=Math.max(0.4,Math.min(3,vpZ*delta));
     vpX=midX-(midX-vpX)*(newZ/vpZ);
     vpY=midY-(midY-vpY)*(newZ/vpZ);
-    vpZ=newZ;
-    pinchDist=newDist;
+    vpZ=newZ;pinchDist=newDist;
+    drawTables();return;
+  }
+  if(resizing){
+    const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);
+    const t=tables.find(t=>t.id===selectedTable);if(!t)return;
+    const dx=x-resizeStartX,dy=y-resizeStartY;
+    if(resizeDir==='e'||resizeDir==='se')t.w=Math.max(14,Math.min(120,resizeOrigW+dx*2));
+    if(resizeDir==='s'||resizeDir==='se')t.h=Math.max(14,Math.min(120,resizeOrigH+dy*2));
+    if(resizeDir==='se'||t.shape==='circle'||t.rotated){const s=Math.max(14,Math.min(120,Math.max(resizeOrigW+dx*2,resizeOrigH+dy*2)));t.w=s;t.h=s;}
     drawTables();return;
   }
   if(panning){
@@ -512,9 +597,9 @@ canvas.addEventListener('touchmove',e=>{
   const t=tables.find(t=>t.id===selectedTable);
   if(t){t.x=x-dragOffX;t.y=y-dragOffY;drawTables();}
 },{passive:false});
-
 canvas.addEventListener('touchend',e=>{
   if(e.touches.length>0)return;
+  if(resizing){resizing=false;save();return;}
   if(panning){panning=false;return;}
   if(!dragMoved&&selectedTable!=null){
     const t=tables.find(t=>t.id===selectedTable);
