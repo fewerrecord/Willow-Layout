@@ -83,6 +83,23 @@
     .edit-bar{display:none;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#111;border:0.5px solid #3a5a3a;border-radius:10px}
     .edit-bar.visible{display:flex}
     .edit-bar-label{font-size:11px;font-weight:500;color:#5dca8a}
+    .floor-layout{display:flex;flex-direction:column;gap:0}
+    .floor-sidebar{flex-shrink:0}
+    .floor-canvas-wrap{flex:1;min-width:0}
+    @media (orientation:landscape) and (max-height:600px){
+      body{padding:8px}
+      .app{max-width:100%;border-radius:8px}
+      .panel{padding:8px}
+      .floor-layout{flex-direction:row;gap:12px;align-items:flex-start}
+      .floor-sidebar{width:180px;flex-shrink:0}
+      .rotation-info-row{flex-direction:column;gap:6px;margin-bottom:8px}
+      .rot-pill{padding:6px 10px}
+      .srv-picker{margin-bottom:8px}
+      .srv-option{padding:7px 10px}
+      .toolbar{margin-bottom:8px}
+      .edit-bar{margin-bottom:8px}
+      .srv-picker-label{margin-bottom:4px}
+    }
   </style>
 </head>
 <body>
@@ -93,32 +110,38 @@
   </div>
 
   <div class="panel active" id="panel-floor">
-    <div class="rotation-info-row" id="rotation-info-row"></div>
-    <div class="srv-picker-label">Assign server:</div>
-    <div class="srv-picker" id="srv-picker"></div>
-    <div class="toolbar">
-      <button class="btn btn-sm" id="edit-mode-btn" onclick="toggleEditMode()"><i class="ti ti-pencil"></i> Edit layout</button>
-      <button class="btn btn-sm" onclick="resetLayout()"><i class="ti ti-refresh"></i> Reset</button>
-    </div>
-    <div class="edit-bar" id="edit-bar">
-      <span class="edit-bar-label">Edit mode</span>
-      <div class="toolbar-sep"></div>
-      <span style="font-size:11px;color:#888">Add:</span>
-      <div class="tbl-shape" title="Square table" onclick="addTable('square')">
-        <svg width="18" height="18"><rect x="2" y="2" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+    <div class="floor-layout">
+      <div class="floor-sidebar" id="floor-sidebar">
+        <div class="rotation-info-row" id="rotation-info-row"></div>
+        <div class="srv-picker-label">Assign server:</div>
+        <div class="srv-picker" id="srv-picker"></div>
+        <div class="toolbar">
+          <button class="btn btn-sm" id="edit-mode-btn" onclick="toggleEditMode()"><i class="ti ti-pencil"></i> Edit layout</button>
+          <button class="btn btn-sm" onclick="resetLayout()"><i class="ti ti-refresh"></i> Reset</button>
+        </div>
+        <div class="edit-bar" id="edit-bar">
+          <span class="edit-bar-label">Edit mode</span>
+          <div class="toolbar-sep"></div>
+          <span style="font-size:11px;color:#888">Add:</span>
+          <div class="tbl-shape" title="Square table" onclick="addTable('square')">
+            <svg width="18" height="18"><rect x="2" y="2" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="tbl-shape" title="Round table" onclick="addTable('circle')">
+            <svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="toolbar-sep"></div>
+          <button class="btn btn-sm" onclick="rotateSelected()" id="btn-rotate" style="display:none"><i class="ti ti-rotate-clockwise"></i> Rotate</button>
+          <button class="btn btn-sm" onclick="editSelected()" id="btn-edit-tbl" style="display:none"><i class="ti ti-tag"></i> Rename</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSelected()" id="btn-delete" style="display:none"><i class="ti ti-trash"></i> Delete</button>
+        </div>
       </div>
-      <div class="tbl-shape" title="Round table" onclick="addTable('circle')">
-        <svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <div class="floor-canvas-wrap">
+        <div class="canvas-wrap">
+          <canvas id="tableCanvas" width="700" height="600"></canvas>
+        </div>
+        <p class="notice" id="floor-notice">Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.</p>
       </div>
-      <div class="toolbar-sep"></div>
-      <button class="btn btn-sm" onclick="rotateSelected()" id="btn-rotate" style="display:none"><i class="ti ti-rotate-clockwise"></i> Rotate</button>
-      <button class="btn btn-sm" onclick="editSelected()" id="btn-edit-tbl" style="display:none"><i class="ti ti-tag"></i> Rename</button>
-      <button class="btn btn-sm btn-danger" onclick="deleteSelected()" id="btn-delete" style="display:none"><i class="ti ti-trash"></i> Delete</button>
     </div>
-    <div class="canvas-wrap">
-      <canvas id="tableCanvas" width="700" height="600"></canvas>
-    </div>
-    <p class="notice" id="floor-notice">Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.</p>
   </div>
 
   <div class="panel" id="panel-servers">
