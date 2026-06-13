@@ -237,7 +237,7 @@ async function load(){
   // Phase 2: override with authoritative Supabase data
   try{
     if(!sb)throw new Error('no sb');
-    const{data,error}=await sb.from('floor_state').select('*').eq('id',1).single();
+    const{data,error}=await sb.from('floor_state').select('*').eq('id',1).maybeSingle();
     if(data&&!error){
       if(data.servers?.length)servers=data.servers;
       if(data.tables?.length)tables=data.tables;
