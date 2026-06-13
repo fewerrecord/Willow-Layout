@@ -205,10 +205,15 @@ const canvas=document.getElementById('tableCanvas');
 const ctx=canvas.getContext('2d');
 const CW=700,CH=600,BAR_Y=500;
 
-let _saveTimer=null;
+let _saveTimer=null,_channel=null;
 function save(){
   try{localStorage.setItem('cv_servers',JSON.stringify(servers));localStorage.setItem('cv_tables',JSON.stringify(tables));localStorage.setItem('cv_rotation',rotationIndex);localStorage.setItem('cv_last_srv',lastSatServerId||'');}catch(e){}
+  broadcastState();
   clearTimeout(_saveTimer);_saveTimer=setTimeout(pushToCloud,400);
+}
+function broadcastState(){
+  if(!_channel)return;
+  _channel.send({type:'broadcast',event:'sync',payload:{tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null}});
 }
 async function pushToCloud(){
   if(!sb)return;
@@ -239,8 +244,8 @@ async function load(){
     if(!sb)throw new Error('no sb');
     const{data,error}=await sb.from('floor_state').select('*').eq('id',1).maybeSingle();
     if(data&&!error){
-      if(data.servers?.length)servers=data.servers;
-      if(data.tables?.length)tables=data.tables;
+      if(Array.isArray(data.servers))servers=data.servers;
+      if(Array.isArray(data.tables))tables=data.tables;
       rotationIndex=data.rotation_index||0;
       lastSatServerId=data.last_sat_server_id||null;
     }
@@ -249,10 +254,12 @@ async function load(){
 }
 function setupRealtime(){
   if(!sb)return;
-  sb.channel('floor').on('postgres_changes',{event:'*',schema:'public',table:'floor_state'},p=>{
-    const d=p.new;
-    servers=d.servers||[];tables=d.tables||[];
-    rotationIndex=d.rotation_index||0;lastSatServerId=d.last_sat_server_id||null;
+  _channel=sb.channel('floor-sync',{config:{broadcast:{self:false}}});
+  _channel.on('broadcast',{event:'sync'},({payload})=>{
+    if(Array.isArray(payload.servers))servers=payload.servers;
+    if(Array.isArray(payload.tables))tables=payload.tables;
+    rotationIndex=payload.rotation_index||0;
+    lastSatServerId=payload.last_sat_server_id||null;
     renderFloorPicker();renderServerList();drawTables();
   }).subscribe(status=>console.log('Realtime:',status));
 }
