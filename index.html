@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Castleview Floor</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#111;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;font-family:system-ui,-apple-system,sans-serif}
@@ -187,6 +188,10 @@
 </div>
 
 <script>
+const SUPABASE_URL=https://xsgyoovivlehtzrbytaz.supabase.co/rest/v1/;
+const SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZ3lvb3ZpdmxlaHR6cmJ5dGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDg2MzYsImV4cCI6MjA5Njg4NDYzNn0.6Kb0EnIJ2QmOxecYzbfMHskztPPglgQKS3K9wiCI8EI;
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
 const SWATCHES=['#378ADD','#E24B4A','#639922','#BA7517','#7F77DD','#1D9E75','#D4537E','#D85A30','#5DCAA5','#EF9F27','#aaaaaa','#F0997B'];
 const LAYOUT_VERSION='cv_v2';
 let tables=[],selectedTable=null,selectedServer=null;
@@ -198,13 +203,18 @@ const canvas=document.getElementById('tableCanvas');
 const ctx=canvas.getContext('2d');
 const CW=700,CH=600,BAR_Y=500;
 
-function save(){try{localStorage.setItem('cv_servers',JSON.stringify(servers));localStorage.setItem('cv_tables',JSON.stringify(tables));localStorage.setItem('cv_rotation',rotationIndex);localStorage.setItem('cv_last_srv',lastSatServerId||'');}catch(e){}}
-function load(){
+let _saveTimer=null;
+function save(){
+  try{localStorage.setItem('cv_servers',JSON.stringify(servers));localStorage.setItem('cv_tables',JSON.stringify(tables));localStorage.setItem('cv_rotation',rotationIndex);localStorage.setItem('cv_last_srv',lastSatServerId||'');}catch(e){}
+  clearTimeout(_saveTimer);_saveTimer=setTimeout(pushToCloud,400);
+}
+async function pushToCloud(){
+  try{await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null});}
+  catch(e){console.warn('Supabase sync error',e);}
+}
+async function load(){
+  // Phase 1: show localStorage data immediately
   try{
-    if(localStorage.getItem('cv_layout_version')!==LAYOUT_VERSION){
-      ['cv_servers','cv_tables','cv_rotation','cv_last_srv'].forEach(k=>localStorage.removeItem(k));
-      localStorage.setItem('cv_layout_version',LAYOUT_VERSION);
-    }
     const sv=localStorage.getItem('cv_servers'),tb=localStorage.getItem('cv_tables'),ri=localStorage.getItem('cv_rotation'),ls=localStorage.getItem('cv_last_srv');
     if(sv)servers=JSON.parse(sv);
     if(tb)tables=JSON.parse(tb);
@@ -221,6 +231,25 @@ function load(){
     ];
   }
   if(!tables.length)initTables(false);
+  // Phase 2: override with authoritative Supabase data
+  try{
+    const{data,error}=await sb.from('floor_state').select('*').eq('id',1).single();
+    if(data&&!error){
+      if(data.servers?.length)servers=data.servers;
+      if(data.tables?.length)tables=data.tables;
+      rotationIndex=data.rotation_index||0;
+      lastSatServerId=data.last_sat_server_id||null;
+    }
+  }catch(e){console.warn('Supabase load failed, using local data');}
+  setupRealtime();
+}
+function setupRealtime(){
+  sb.channel('floor').on('postgres_changes',{event:'UPDATE',schema:'public',table:'floor_state',filter:'id=eq.1'},p=>{
+    const d=p.new;
+    servers=d.servers||[];tables=d.tables||[];
+    rotationIndex=d.rotation_index||0;lastSatServerId=d.last_sat_server_id||null;
+    renderFloorPicker();renderServerList();drawTables();
+  }).subscribe();
 }
 
 function switchTab(t){
@@ -642,9 +671,11 @@ function ctxDirty(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){con
 function ctxPaid(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=true;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
 function ctxRemove(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=false;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
 
-load();
-const _initNext=getNext();if(_initNext)selectedServer=_initNext.id;
-renderFloorPicker();renderServerList();drawTables();
+(async()=>{
+  await load();
+  const n=getNext();if(n)selectedServer=n.id;
+  renderFloorPicker();renderServerList();drawTables();
+})();
 </script>
 </body>
 </html>
