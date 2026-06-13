@@ -249,7 +249,7 @@ async function load(){
 }
 function setupRealtime(){
   if(!sb)return;
-  sb.channel('floor').on('postgres_changes',{event:'UPDATE',schema:'public',table:'floor_state',filter:'id=eq.1'},p=>{
+  sb.channel('floor').on('postgres_changes',{event:'*',schema:'public',table:'floor_state'},p=>{
     const d=p.new;
     servers=d.servers||[];tables=d.tables||[];
     rotationIndex=d.rotation_index||0;lastSatServerId=d.last_sat_server_id||null;
