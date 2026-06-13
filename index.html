@@ -209,7 +209,7 @@ let _saveTimer=null,_channel=null;
 function save(){
   try{localStorage.setItem('cv_servers',JSON.stringify(servers));localStorage.setItem('cv_tables',JSON.stringify(tables));localStorage.setItem('cv_rotation',rotationIndex);localStorage.setItem('cv_last_srv',lastSatServerId||'');}catch(e){}
   broadcastState();
-  clearTimeout(_saveTimer);_saveTimer=setTimeout(pushToCloud,400);
+  clearTimeout(_saveTimer);_saveTimer=setTimeout(()=>{_saveTimer=null;pushToCloud();},400);
 }
 function broadcastState(){
   if(!_channel)return;
@@ -251,17 +251,32 @@ async function load(){
     }
   }catch(e){console.warn('Supabase load failed, using local data');}
   setupRealtime();
+  startPolling();
+}
+function applyRemoteState(d){
+  if(Array.isArray(d.servers))servers=d.servers;
+  if(Array.isArray(d.tables))tables=d.tables;
+  rotationIndex=d.rotation_index||0;
+  lastSatServerId=d.last_sat_server_id||null;
+  renderFloorPicker();renderServerList();drawTables();
 }
 function setupRealtime(){
   if(!sb)return;
   _channel=sb.channel('floor-sync',{config:{broadcast:{self:false}}});
   _channel.on('broadcast',{event:'sync'},({payload})=>{
-    if(Array.isArray(payload.servers))servers=payload.servers;
-    if(Array.isArray(payload.tables))tables=payload.tables;
-    rotationIndex=payload.rotation_index||0;
-    lastSatServerId=payload.last_sat_server_id||null;
-    renderFloorPicker();renderServerList();drawTables();
+    applyRemoteState(payload);
   }).subscribe(status=>console.log('Realtime:',status));
+}
+async function pollOnce(){
+  if(!sb||_saveTimer||dragging||resizing||panning)return;
+  try{
+    const{data,error}=await sb.from('floor_state').select('*').eq('id',1).maybeSingle();
+    if(data&&!error)applyRemoteState(data);
+  }catch(e){}
+}
+function startPolling(){
+  if(!sb)return;
+  setInterval(pollOnce,5000);
 }
 
 function switchTab(t){
@@ -685,6 +700,7 @@ function ctxRemove(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){co
 
 (async()=>{
   await load();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollOnce();});
   const n=getNext();if(n)selectedServer=n.id;
   renderFloorPicker();renderServerList();drawTables();
 })();
