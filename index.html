@@ -254,7 +254,7 @@ function setupRealtime(){
     servers=d.servers||[];tables=d.tables||[];
     rotationIndex=d.rotation_index||0;lastSatServerId=d.last_sat_server_id||null;
     renderFloorPicker();renderServerList();drawTables();
-  }).subscribe();
+  }).subscribe(status=>console.log('Realtime:',status));
 }
 
 function switchTab(t){
