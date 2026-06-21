@@ -424,7 +424,18 @@ function toggleActive(id){const s=servers.find(s=>s.id===id);if(!s)return;s.acti
 function addServer(){const inp=document.getElementById('new-server-name'),name=inp.value.trim();if(!name)return;servers.push({id:Date.now(),name,active:true,tables:0,color:SWATCHES[servers.length%SWATCHES.length],phone:'',smsEnabled:false});inp.value='';save();renderServerList();renderFloorPicker();}
 function openServerEdit(id){editingSrvId=id;const s=servers.find(s=>s.id===id);if(!s)return;editingSrvColor=s.color;document.getElementById('edit-srv-name').value=s.name;document.getElementById('edit-srv-swatches').innerHTML=SWATCHES.map(c=>`<div class="swatch${c===s.color?' picked':''}" style="background:${c}" onclick="pickEditColor('${c}',this)"></div>`).join('');document.getElementById('edit-srv-phone').value=s.phone||'';document.getElementById('edit-srv-sms').checked=!!s.smsEnabled;document.getElementById('server-edit-modal').classList.add('open');}
 function pickEditColor(c,el){editingSrvColor=c;document.querySelectorAll('#edit-srv-swatches .swatch').forEach(s=>s.classList.remove('picked'));el.classList.add('picked');}
-function saveServerEdit(){const s=servers.find(s=>s.id===editingSrvId);if(s){s.name=document.getElementById('edit-srv-name').value.trim()||s.name;s.color=editingSrvColor;s.phone=document.getElementById('edit-srv-phone').value.trim();s.smsEnabled=document.getElementById('edit-srv-sms').checked;}closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();}
+function saveServerEdit(){
+  const s=servers.find(s=>s.id===editingSrvId);
+  if(s){
+    s.name=document.getElementById('edit-srv-name').value.trim()||s.name;
+    s.color=editingSrvColor;
+    const newPhone=document.getElementById('edit-srv-phone').value.trim();
+    const newSms=document.getElementById('edit-srv-sms').checked;
+    if(newSms&&newPhone&&!s.smsOptinSent){s.smsOptinSent=true;sendOptinRequest(newPhone);}
+    s.phone=newPhone;s.smsEnabled=newSms;
+  }
+  closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();
+}
 function deleteServer(){tables.forEach(t=>{if(t.server===editingSrvId)t.server=null;});servers=servers.filter(s=>s.id!==editingSrvId);if(selectedServer===editingSrvId)selectedServer=null;const a=servers.filter(s=>s.active);rotationIndex=rotationIndex%Math.max(a.length,1);closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();}
 
 function renderSectionList(){
@@ -936,9 +947,14 @@ function assignServer(t,srvId){
   save();renderFloorPicker();renderServerList();drawTables();
   if(s&&s.smsEnabled&&s.phone)sendSmsNotification(s.phone,s.name,t.label);
 }
+async function sendOptinRequest(phone){
+  if(!sb)return;
+  try{await sb.functions.invoke('send-sms',{body:{action:'optin-request',phone}});}
+  catch(e){console.warn('Opt-in request failed',e);}
+}
 async function sendSmsNotification(phone,serverName,tableLabel){
   if(!sb)return;
-  try{await sb.functions.invoke('send-sms',{body:{phone,serverName,tableLabel}});}
+  try{await sb.functions.invoke('send-sms',{body:{action:'table-alert',phone,tableLabel}});}
   catch(e){console.warn('SMS notification failed',e);}
 }
 function openTableCtx(t){
