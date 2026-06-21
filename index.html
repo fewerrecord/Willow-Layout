@@ -442,15 +442,20 @@ function renderSectionList(){
   const el=document.getElementById('sec-list');
   if(!sections.length){el.innerHTML='<div style="font-size:12px;color:#666;padding:6px 0">No sections yet.</div>';return;}
   el.innerHTML='<div class="srv-picker">'+sections.map(sec=>{
-    const srv=servers.find(s=>s.id===sec.serverId);
     const isSel=selectedSectionId===sec.id;
-    return`<div class="srv-option${isSel?' active-pick':''}" onclick="pickSection(${sec.id})">
-      <div class="srv-opt-dot" style="background:${sec.color||'#555'};cursor:pointer" onclick="event.stopPropagation();openSectionEdit(${sec.id})" title="Edit"></div>
+    const opts='<option value="">— server —</option>'+servers.map(s=>`<option value="${s.id}"${s.id===sec.serverId?' selected':''}>${s.name}${s.active?'':' (off)'}</option>`).join('');
+    return`<div class="srv-option${isSel?' active-pick':''}" onclick="pickSection(${sec.id})" style="flex-wrap:wrap;gap:6px">
+      <div class="srv-opt-dot" style="background:${sec.color||'#555'};cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();openSectionEdit(${sec.id})" title="Edit color/name"></div>
       <span class="srv-opt-name">${sec.name}</span>
-      <span class="srv-count" style="color:#888">${srv?srv.name:'—'}</span>
+      <select onclick="event.stopPropagation()" onchange="setSectionServer(${sec.id},this.value)" style="padding:2px 5px;border:0.5px solid #444;border-radius:6px;font-size:11px;background:#1a1a1a;color:#e0e0e0;max-width:90px">${opts}</select>
       <span class="srv-count">${sec.tableIds.length}t</span>
     </div>`;
   }).join('')+'</div>';
+}
+function setSectionServer(secId,val){
+  const sec=sections.find(s=>s.id===secId);if(!sec)return;
+  sec.serverId=val?parseInt(val):null;
+  save();renderSectionList();drawSectionCanvas();
 }
 function pickSection(id){selectedSectionId=id;renderSectionList();drawSectionCanvas();}
 function toggleSectionDefineMode(){
@@ -499,9 +504,12 @@ function handleSectionTap(cx,cy){
     save();renderSectionList();drawSectionCanvas();
   } else {
     const sec=sections.find(s=>s.tableIds.includes(hit.id));
-    if(!sec||!sec.serverId)return;
+    const notice=document.getElementById('sec-notice');
+    if(!sec){notice.textContent='Table '+hit.label+' isn\'t in any section — use Define mode to assign it.';return;}
+    if(!sec.serverId){notice.textContent='Section "'+sec.name+'" has no server — pick one from the dropdown above.';return;}
     if(!hit.server&&!hit.paid){assignServer(hit,sec.serverId);}
     else{openTableCtx(hit);}
+    notice.textContent='Select a section, then tap a table to auto-assign its server.';
     drawSectionCanvas();
   }
 }
@@ -788,8 +796,11 @@ canvas.addEventListener('mouseup',e=>{
     if(t&&!editMode){
       if(floorSectionMode){
         const sec=sections.find(s=>s.tableIds.includes(t.id));
-        if(sec&&sec.serverId&&!t.server&&!t.paid)assignServer(t,sec.serverId);
-        else if(t.server||t.dirty||t.paid)openTableCtx(t);
+        const fn=document.getElementById('floor-notice');
+        if(!sec){fn.textContent='Table '+t.label+' isn\'t in any section — assign it in the Sections tab.';}
+        else if(!sec.serverId){fn.textContent='Section "'+sec.name+'" has no server — set one in the Sections tab.';}
+        else if(t.server||t.dirty||t.paid){openTableCtx(t);}
+        else{assignServer(t,sec.serverId);}
       } else {
         if(selectedServer&&!t.server&&!t.paid)assignServer(t,selectedServer);
         else if(t.server||t.dirty||t.paid)openTableCtx(t);
@@ -921,8 +932,11 @@ canvas.addEventListener('touchend',e=>{
     if(t&&!editMode){
       if(floorSectionMode){
         const sec=sections.find(s=>s.tableIds.includes(t.id));
-        if(sec&&sec.serverId&&!t.server&&!t.paid)assignServer(t,sec.serverId);
-        else if(t.server||t.dirty||t.paid)openTableCtx(t);
+        const fn=document.getElementById('floor-notice');
+        if(!sec){fn.textContent='Table '+t.label+' isn\'t in any section — assign it in the Sections tab.';}
+        else if(!sec.serverId){fn.textContent='Section "'+sec.name+'" has no server — set one in the Sections tab.';}
+        else if(t.server||t.dirty||t.paid){openTableCtx(t);}
+        else{assignServer(t,sec.serverId);}
       } else {
         if(selectedServer&&!t.server&&!t.paid)assignServer(t,selectedServer);
         else if(t.server||t.dirty||t.paid)openTableCtx(t);
