@@ -169,8 +169,9 @@
           <input type="text" id="new-sec-name" placeholder="New section…" style="flex:1;padding:5px 8px;border:0.5px solid #444;border-radius:8px;font-size:12px;background:#1a1a1a;color:#f0f0f0">
           <button class="btn btn-sm" onclick="addSection()"><i class="ti ti-plus"></i></button>
         </div>
-        <div style="margin-top:10px">
+        <div style="margin-top:10px;display:flex;gap:7px">
           <button class="btn btn-sm" id="sec-define-btn" onclick="toggleSectionDefineMode()"><i class="ti ti-pencil"></i> Define sections</button>
+          <button class="btn btn-sm" onclick="resetSections()"><i class="ti ti-refresh"></i> Reset</button>
         </div>
         <p class="notice" id="sec-notice" style="margin-top:8px">Select a section, then tap a table to auto-assign its server.</p>
       </div>
@@ -262,12 +263,13 @@ function broadcastState(){
 }
 async function pushToCloud(){
   if(!sb)return;
-  try{await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null,sections});}
-  catch(e){
-    console.warn('Supabase sync error (retrying without sections)',e);
-    try{await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null});}
-    catch(e2){console.warn('Supabase sync error',e2);}
-  }
+  try{
+    const{error}=await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null,sections});
+    if(error){
+      const{error:e2}=await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null});
+      if(e2)console.warn('Supabase sync error',e2);
+    }
+  }catch(e){console.warn('Supabase sync error',e);}
 }
 async function load(){
   // Phase 1: show localStorage data immediately
@@ -475,6 +477,7 @@ function deleteSection(){
   if(selectedSectionId===editingSecId)selectedSectionId=null;
   closeModal('section-edit-modal');save();renderSectionList();drawSectionCanvas();
 }
+function resetSections(){sections.forEach(s=>s.tableIds=[]);save();renderSectionList();drawSectionCanvas();}
 function handleSectionTap(cx,cy){
   const hit=getTableAt(cx,cy);if(!hit)return;
   if(sectionDefineMode){
