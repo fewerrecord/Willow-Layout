@@ -524,7 +524,7 @@ function handleSectionTap(cx,cy){
     if(!sec){notice.textContent='Table '+hit.label+' isn\'t in any section — use Define mode to assign it.';return;}
     if(!sec.serverId){notice.textContent='Section "'+sec.name+'" has no server — pick one from the dropdown above.';return;}
     if(!hit.server&&!hit.paid){assignServer(hit,sec.serverId);}
-    else if(hit.fresh){hit.fresh=false;save();drawSectionCanvas();drawTables();}
+    else if(marchingAnts&&hit.fresh){hit.fresh=false;save();drawSectionCanvas();drawTables();}
     else{openTableCtx(hit);}
     notice.textContent='Select a section, then tap a table to auto-assign its server.';
     drawSectionCanvas();
@@ -852,12 +852,12 @@ canvas.addEventListener('mouseup',e=>{
         const fn=document.getElementById('floor-notice');
         if(!sec){fn.textContent='Table '+t.label+' isn\'t in any section — assign it in the Sections tab.';}
         else if(!sec.serverId){fn.textContent='Section "'+sec.name+'" has no server — set one in the Sections tab.';}
-        else if(t.fresh){t.fresh=false;save();drawTables();}
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
         else if(t.server||t.dirty||t.paid){openTableCtx(t);}
         else{assignServer(t,sec.serverId);}
       } else {
         if(selectedServer&&!t.server&&!t.paid)assignServer(t,selectedServer);
-        else if(t.fresh){t.fresh=false;save();drawTables();}
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
         else if(t.server||t.dirty||t.paid)openTableCtx(t);
       }
     }
@@ -990,12 +990,12 @@ canvas.addEventListener('touchend',e=>{
         const fn=document.getElementById('floor-notice');
         if(!sec){fn.textContent='Table '+t.label+' isn\'t in any section — assign it in the Sections tab.';}
         else if(!sec.serverId){fn.textContent='Section "'+sec.name+'" has no server — set one in the Sections tab.';}
-        else if(t.fresh){t.fresh=false;save();drawTables();}
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
         else if(t.server||t.dirty||t.paid){openTableCtx(t);}
         else{assignServer(t,sec.serverId);}
       } else {
         if(selectedServer&&!t.server&&!t.paid)assignServer(t,selectedServer);
-        else if(t.fresh){t.fresh=false;save();drawTables();}
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
         else if(t.server||t.dirty||t.paid)openTableCtx(t);
       }
     }
@@ -1006,7 +1006,7 @@ canvas.addEventListener('touchend',e=>{
 
 function assignServer(t,srvId){
   if(t.server){const old=servers.find(s=>s.id===t.server);if(old&&old.tables>0)old.tables--;}
-  t.server=srvId;t.dirty=false;t.paid=false;t.fresh=true;
+  t.server=srvId;t.dirty=false;t.paid=false;t.fresh=marchingAnts;
   const s=servers.find(s=>s.id===srvId);
   if(s){
     s.tables++;lastSatServerId=s.id;
