@@ -85,6 +85,12 @@
     .edit-bar{display:none;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#111;border:0.5px solid #3a5a3a;border-radius:10px}
     .edit-bar.visible{display:flex}
     .edit-bar-label{font-size:11px;font-weight:500;color:#5dca8a}
+    .toggle-wrap{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+    .toggle-label{font-size:11px;font-weight:500;color:#888}
+    .sw{width:34px;height:20px;border-radius:10px;background:#7a2020;position:relative;transition:background 0.2s;flex-shrink:0}
+    .sw.on{background:#2a6a3a}
+    .sw::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left 0.18s;box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+    .sw.on::after{left:17px}
     .floor-layout{display:flex;flex-direction:column;gap:0}
     .floor-sidebar{flex-shrink:0}
     .floor-canvas-wrap{flex:1;min-width:0}
@@ -121,12 +127,12 @@
           <div class="srv-picker" id="srv-picker"></div>
         </div>
         <div class="toolbar">
-          <button class="btn btn-sm" id="floor-sec-btn" onclick="toggleFloorSectionMode()"><i class="ti ti-layout-sidebar"></i> Sections</button>
+          <div class="toggle-wrap" onclick="toggleFloorSectionMode()"><div class="sw" id="floor-sec-btn"></div><span class="toggle-label">Sections</span></div>
           <div class="toolbar-sep"></div>
           <button class="btn btn-sm" id="edit-mode-btn" onclick="toggleEditMode()"><i class="ti ti-pencil"></i> Edit layout</button>
           <button class="btn btn-sm" onclick="resetLayout()"><i class="ti ti-refresh"></i> Reset</button>
           <div class="toolbar-sep"></div>
-          <button class="btn btn-sm btn-active" id="anim-btn" onclick="toggleMarchingAnts()"><i class="ti ti-circle-dashed"></i> Animate</button>
+          <div class="toggle-wrap" onclick="toggleMarchingAnts()"><div class="sw on" id="anim-btn"></div><span class="toggle-label">Animate</span></div>
         </div>
         <div class="edit-bar" id="edit-bar">
           <span class="edit-bar-label">Edit mode</span>
@@ -365,11 +371,11 @@ function toggleEditMode(){
 function applyFloorSectionModeUI(){
   const btn=document.getElementById('floor-sec-btn'),wrap=document.getElementById('srv-picker-wrap'),notice=document.getElementById('floor-notice');
   if(floorSectionMode){
-    btn.className='btn btn-sm btn-active';btn.innerHTML='<i class="ti ti-layout-sidebar"></i> Sections';
+    btn.classList.add('on');
     wrap.style.opacity='0.35';wrap.style.pointerEvents='none';
     notice.textContent='Section mode: tap a free table to auto-assign by section.';
   } else {
-    btn.className='btn btn-sm';btn.innerHTML='<i class="ti ti-layout-sidebar"></i> Sections';
+    btn.classList.remove('on');
     wrap.style.opacity='';wrap.style.pointerEvents='';
     notice.textContent='Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.';
   }
@@ -605,7 +611,7 @@ function tHalf(t){return{hw:t.shape==='circle'?tR(t):(t.w||44)/2,hh:t.shape==='c
 function toggleMarchingAnts(){
   marchingAnts=!marchingAnts;
   const btn=document.getElementById('anim-btn');
-  btn.className=marchingAnts?'btn btn-sm btn-active':'btn btn-sm';
+  btn.classList.toggle('on',marchingAnts);
   if(marchingAnts){if(tables.some(t=>t.fresh))startAnim();}
   else{if(_animFrame){cancelAnimationFrame(_animFrame);_animFrame=null;_dashOffset=0;}drawTables();}
   try{localStorage.setItem('cv_marching_ants',marchingAnts?'1':'0');}catch(e){}
@@ -1048,7 +1054,7 @@ function ctxRemove(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){co
 (async()=>{
   await load();
   try{if(localStorage.getItem('cv_floor_sec_mode')==='1'){floorSectionMode=true;applyFloorSectionModeUI();}}catch(e){}
-  try{if(localStorage.getItem('cv_marching_ants')==='0'){marchingAnts=false;document.getElementById('anim-btn').className='btn btn-sm';}}catch(e){}
+  try{if(localStorage.getItem('cv_marching_ants')==='0'){marchingAnts=false;document.getElementById('anim-btn').classList.remove('on');}}catch(e){}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollOnce();});
   const n=getNext();if(n)selectedServer=n.id;
   renderFloorPicker();renderServerList();drawTables();
