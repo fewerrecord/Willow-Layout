@@ -41,14 +41,20 @@ serve(async (req) => {
       from,
       "Willowcreek Cafe: You're all set! You'll receive a text each time a table is seated at your station. Reply STOP anytime to opt out."
     );
+
+    await sb.from("sms_consent_log").insert({ phone: from, event_type: "opt_in_confirmed", raw_body: body });
   } else if (body === "STOP") {
     // Mirror in DB — Twilio handles carrier-level opt-out automatically
     await sb.from("servers").upsert({ phone: from, do_not_text: true }, { onConflict: "phone" });
+
+    await sb.from("sms_consent_log").insert({ phone: from, event_type: "opt_out", raw_body: body });
   } else if (body === "HELP") {
     await sendSms(
       from,
       `Willowcreek Cafe: For help contact ${HELP_CONTACT}. Reply STOP to opt out.`
     );
+
+    await sb.from("sms_consent_log").insert({ phone: from, event_type: "help", raw_body: body });
   }
 
   // Always return empty TwiML so Twilio doesn't log an error

@@ -6,6 +6,11 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Keep this in sync with the Opt-in Message field filed on the A2P 10DLC
+// campaign in the Twilio Console (Messaging > Regulatory Compliance > Campaigns).
+const OPT_IN_MESSAGE =
+  "Willowcreek Cafe: Reply YES to receive table-ready SMS alerts during your shifts. Msg & data rates may apply. Reply STOP to cancel.";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
@@ -38,10 +43,11 @@ serve(async (req) => {
       const sb = sb_service();
       await sb.from("servers").upsert({ phone, opted_in_at: null, do_not_text: false }, { onConflict: "phone", ignoreDuplicates: true });
 
-      const data = await sendSms(
-        phone,
-        "Willowcreek Cafe: Reply YES to receive table-ready SMS alerts during your shifts. Msg & data rates may apply. Reply STOP to cancel."
-      );
+      const data = await sendSms(phone, OPT_IN_MESSAGE);
+
+      // Audit trail: proves when/why the opt-in invite was sent.
+      await sb.from("sms_consent_log").insert({ phone, event_type: "opt_in_requested", raw_body: OPT_IN_MESSAGE });
+
       return json(data);
     }
 
@@ -60,7 +66,10 @@ serve(async (req) => {
         return json({ skipped: true, reason: "not opted in or do_not_text set" });
       }
 
-      const data = await sendSms(phone, `#${tableLabel}`);
+      const data = await sendSms(
+        phone,
+        `Willowcreek Cafe: Table ${tableLabel} is ready for you. Msg frequency varies, msg & data rates may apply. Reply STOP to cancel, HELP for help.`
+      );
       return json(data);
     }
 
