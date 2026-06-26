@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Willowcreek Cafe - Staff SMS Alert Sign-Up</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 1.4em; }
+  label { display: block; margin-top: 16px; font-weight: bold; }
+  input[type="tel"], input[type="text"] { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; font-size: 1em; }
+  .consent { margin-top: 20px; font-size: 0.95em; line-height: 1.4; }
+  .consent input { width: auto; margin-right: 8px; }
+  button { margin-top: 24px; padding: 12px 24px; font-size: 1em; background: #c0392b; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  .fine-print { margin-top: 30px; font-size: 0.85em; color: #555; }
+  .fine-print a { color: #555; }
+  .status { margin-top: 16px; font-size: 0.95em; }
+  .status.error { color: #c0392b; }
+  .status.success { color: #1e7e34; }
+  button:disabled { opacity: 0.6; cursor: default; }
+</style>
+</head>
+<body>
+  <h1>Willowcreek Cafe &mdash; Staff Table-Alert SMS Sign-Up</h1>
+  <p>Servers: enter your name and mobile number below to sign up for table-ready SMS alerts during your shifts.</p>
+
+  <form id="optin-form">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+
+    <label for="phone">Mobile Number</label>
+    <input type="tel" id="phone" name="phone" placeholder="(555) 555-5555" required>
+
+    <div class="consent">
+      <label style="font-weight: normal;">
+        <input type="checkbox" id="consent" name="consent" required>
+        I agree to receive automated table-ready SMS alerts from Willowcreek Cafe during my shifts. Msg &amp; data rates may apply. Message frequency varies. Reply STOP to cancel, HELP for help.
+      </label>
+    </div>
+
+    <button type="submit" id="submit-btn">Sign Up for SMS Alerts</button>
+    <p id="status" class="status" role="status"></p>
+  </form>
+
+  <p>After signing up, you'll receive a one-time confirmation text: <em>"Willowcreek Cafe: Reply YES to receive table-ready SMS alerts during your shifts. Msg &amp; data rates may apply. Reply STOP to cancel."</em> No alerts are sent until you reply YES.</p>
+
+  <div class="fine-print">
+    <a href="/privacy-policy.html">Privacy Policy</a> &middot; <a href="/terms.html">Terms and Conditions</a>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://xsgyoovivlehtzrbytaz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZ3lvb3ZpdmxlaHR6cmJ5dGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDg2MzYsImV4cCI6MjA5Njg4NDYzNn0.6Kb0EnIJ2QmOxecYzbfMHskztPPglgQKS3K9wiCI8EI';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById('optin-form');
+    const statusEl = document.getElementById('status');
+    const submitBtn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+
+      statusEl.className = 'status';
+      statusEl.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing up...';
+
+      try {
+        // Record the name first so the webhook-driven opt-in confirmation has it on file.
+        await sb.from('servers').upsert({ phone, name }, { onConflict: 'phone' });
+
+        const { data, error } = await sb.functions.invoke('send-sms', {
+          body: { action: 'optin-request', phone },
+        });
+
+        if (error || data?.error) {
+          throw new Error(data?.error || error.message);
+        }
+
+        statusEl.className = 'status success';
+        statusEl.textContent = "You're signed up! Check your phone for a text — reply YES to start receiving table-ready alerts.";
+        form.reset();
+      } catch (err) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Something went wrong signing you up. Please try again or ask a manager for help.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign Up for SMS Alerts';
+      }
+    });
+  </script>
+</body>
+</html>
