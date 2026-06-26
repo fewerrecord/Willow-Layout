@@ -750,15 +750,6 @@ function drawSectionCanvas(){
       sCtx.setLineDash([]);
     }
     sCtx.restore();
-    if(marchingAnts&&t.fresh){
-      sCtx.save();
-      sCtx.strokeStyle='rgba(255,255,255,0.9)';sCtx.lineWidth=2.5/vpZ;
-      sCtx.setLineDash([6/vpZ,4/vpZ]);sCtx.lineDashOffset=-_dashOffset/vpZ;
-      if(t.shape==='circle'){sCtx.beginPath();sCtx.arc(t.x,t.y,R+7,0,Math.PI*2);sCtx.stroke();}
-      else if(t.rotated){sCtx.beginPath();sCtx.moveTo(t.x,t.y-(R+7));sCtx.lineTo(t.x+(R+7),t.y);sCtx.lineTo(t.x,t.y+(R+7));sCtx.lineTo(t.x-(R+7),t.y);sCtx.closePath();sCtx.stroke();}
-      else{sCtx.beginPath();sCtx.roundRect(t.x-hw-7,t.y-hh-7,(hw+7)*2,(hh+7)*2,5);sCtx.stroke();}
-      sCtx.setLineDash([]);sCtx.restore();
-    }
   });
   sCtx.restore();
 }
@@ -1047,8 +1038,8 @@ function openTableCtx(t){
   document.getElementById('table-ctx-modal').classList.add('open');
 }
 function ctxSwitch(tid){closeModal('table-ctx-modal');if(!selectedServer)return;const t=tables.find(t=>t.id===tid);if(t)assignServer(t,selectedServer);}
-function ctxDirty(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=true;t.paid=false;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
-function ctxPaid(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=true;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
+function ctxDirty(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=true;t.paid=false;t.fresh=false;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
+function ctxPaid(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=true;t.fresh=false;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
 function ctxRemove(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=false;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
 
 (async()=>{
