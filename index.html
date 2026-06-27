@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Castleview Floor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#111;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px;font-family:system-ui,-apple-system,sans-serif}
+    .app{display:flex;flex-direction:column;min-height:600px;background:#1c1c1e;color:#f0f0f0;border-radius:12px;overflow:hidden;width:100%;max-width:760px}
+    .tabs{display:flex;border-bottom:0.5px solid #333;background:#111}
+    .tab{padding:10px 18px;font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;color:#888;background:none;border-top:none;border-left:none;border-right:none}
+    .tab.active{color:#f0f0f0;border-bottom-color:#f0f0f0}
+    .panel{display:none;padding:16px}
+    .panel.active{display:block}
+    .btn{padding:6px 13px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid #444;background:#2a2a2e;color:#e0e0e0}
+    .btn:hover{background:#333}
+    .btn-primary{background:#e0e0e0;color:#111;border-color:#e0e0e0}
+    .btn-primary:hover{background:#fff}
+    .btn-sm{padding:4px 9px;font-size:11px}
+    .btn-danger{color:#ff6b6b;border-color:#5a2a2a}
+    .btn-danger:hover{background:#3a1a1a}
+    .btn-active{background:#2a3a2a;color:#5dca8a;border-color:#3a5a3a}
+    .toolbar{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+    .toolbar-sep{width:0.5px;height:22px;background:#333}
+    .tbl-shape{width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:8px;border:0.5px solid #444;color:#ccc}
+    .tbl-shape:hover{background:#333}
+    .canvas-wrap{border:0.5px solid #333;border-radius:10px;overflow:hidden;background:#111}
+    #tableCanvas{display:block;width:100%;height:auto}
+    #sectionCanvas{display:block;width:100%;height:auto}
+    .rotation-info-row{display:flex;gap:10px;margin-bottom:12px}
+    .rot-pill{display:flex;align-items:center;gap:8px;background:#111;border:0.5px solid #333;border-radius:8px;padding:8px 14px;font-size:12px;flex:1}
+    .rot-pill-label{color:#888}
+    .rot-pill-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+    .rot-pill-name{font-weight:500;color:#f0f0f0}
+    .srv-picker-label{font-size:11px;font-weight:500;color:#888;margin-bottom:6px}
+    .srv-picker{display:flex;flex-direction:column;border:0.5px solid #333;border-radius:10px;overflow:hidden;background:#111;margin-bottom:12px}
+    .srv-option{display:flex;align-items:center;gap:9px;padding:9px 13px;cursor:pointer;font-size:13px;border-bottom:0.5px solid #2a2a2a;color:#ccc}
+    .srv-option:last-child{border-bottom:none}
+    .srv-option:hover{background:#222}
+    .srv-option.active-pick{background:#1e2a1e}
+    .srv-opt-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+    .srv-opt-name{flex:1;color:#e0e0e0}
+    .srv-option.active-pick .srv-opt-name{font-weight:500}
+    .srv-opt-badge{font-size:10px;padding:2px 7px;border-radius:20px}
+    .badge-next{background:#1a3a1a;color:#5dca8a}
+    .badge-last{background:#2a2a2a;color:#888}
+    .srv-count{font-size:11px;color:#666}
+    .modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:flex-start;justify-content:center;padding-top:60px;z-index:100}
+    .modal-wrap.open{display:flex}
+    .modal{background:#222;border-radius:12px;padding:20px;width:360px;max-width:95vw;border:0.5px solid #444}
+    .modal h3{font-size:15px;font-weight:500;margin-bottom:14px;color:#f0f0f0}
+    .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+    .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+    .form-group label{font-size:11px;color:#888;font-weight:500}
+    .form-group input{padding:8px 10px;border:0.5px solid #444;border-radius:8px;font-size:13px;background:#1a1a1a;color:#f0f0f0}
+    .ctx-item{padding:9px 12px;font-size:13px;cursor:pointer;border-radius:6px;color:#e0e0e0;display:flex;align-items:center;gap:9px}
+    .ctx-item:hover{background:#2a2a2a}
+    .ctx-item.danger{color:#ff6b6b}
+    .ctx-item.warn{color:#f0c060}
+    .ctx-sep{height:0.5px;background:#333;margin:3px 0}
+    .ctx-header{padding:8px 12px;font-size:12px;font-weight:500;color:#888;border-bottom:0.5px solid #333}
+    .color-swatch-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px}
+    .swatch{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+    .swatch.picked{border-color:#f0f0f0}
+    .server-list{border:0.5px solid #333;border-radius:10px;overflow:hidden}
+    .server-section-head{padding:8px 14px;font-size:11px;font-weight:500;color:#888;background:#111;border-bottom:0.5px solid #333}
+    .server-item{padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #2a2a2a}
+    .server-item:last-child{border-bottom:none}
+    .sv-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;cursor:pointer;transition:transform 0.1s}
+    .sv-dot:hover{transform:scale(1.3)}
+    .sv-name{font-size:13px;font-weight:500;color:#e0e0e0;flex:1}
+    .sv-next{font-size:10px;background:#1a3a1a;color:#5dca8a;padding:2px 6px;border-radius:20px}
+    .sv-count{font-size:12px;color:#666}
+    .sv-toggle{padding:3px 9px;font-size:11px;border-radius:6px;cursor:pointer;border:0.5px solid #444;background:#2a2a2e;color:#999}
+    .sv-toggle:hover{background:#333}
+    .rotation-controls{display:flex;align-items:center;gap:10px;background:#111;border:0.5px solid #333;border-radius:8px;padding:10px 14px;margin-bottom:14px}
+    .rotation-controls span{font-size:12px;color:#888;flex:1}
+    .rotation-controls strong{color:#f0f0f0}
+    .rot-step-btn{width:30px;height:30px;border-radius:50%;border:0.5px solid #444;background:#2a2a2e;color:#ccc;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+    .rot-step-btn:hover{background:#333}
+    .notice{font-size:11px;color:#666;margin-top:6px}
+    .edit-bar{display:none;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#111;border:0.5px solid #3a5a3a;border-radius:10px}
+    .edit-bar.visible{display:flex}
+    .edit-bar-label{font-size:11px;font-weight:500;color:#5dca8a}
+    .toggle-wrap{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
+    .toggle-label{font-size:11px;font-weight:500;color:#888}
+    .sw{width:34px;height:20px;border-radius:10px;background:#7a2020;position:relative;transition:background 0.2s;flex-shrink:0}
+    .sw.on{background:#2a6a3a}
+    .sw::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;left:3px;transition:left 0.18s;box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+    .sw.on::after{left:17px}
+    .floor-layout{display:flex;flex-direction:column;gap:0}
+    .floor-sidebar{flex-shrink:0}
+    .floor-canvas-wrap{flex:1;min-width:0;position:relative}
+    #draw-tools-panel{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#1c1c1e;border:0.5px solid #444;border-radius:12px;padding:10px 8px;display:none;flex-direction:column;align-items:center;gap:8px;z-index:10}
+    .dt-btn{width:32px;height:32px;border-radius:8px;border:0.5px solid #444;background:#2a2a2e;color:#ccc;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px}
+    .dt-btn:hover{background:#333}
+    .dt-btn.active{background:#2a3a2a;color:#5dca8a;border-color:#3a5a3a}
+    .dt-swatch{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+    .dt-swatch.picked{border-color:#f0f0f0}
+    .dt-wbtn{width:32px;height:24px;border-radius:6px;border:0.5px solid #444;background:#2a2a2e;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .dt-wbtn:hover{background:#333}
+    .dt-wbtn.picked{border-color:#5dca8a}
+    @media (orientation:landscape) and (max-height:600px){
+      body{padding:8px}
+      .app{max-width:100%;border-radius:8px}
+      .panel{padding:8px}
+      .floor-layout{flex-direction:row;gap:12px;align-items:flex-start}
+      .floor-sidebar{width:180px;flex-shrink:0;overflow-y:auto;max-height:calc(100vh - 60px)}
+      .rotation-info-row{flex-direction:column;gap:6px;margin-bottom:8px}
+      .rot-pill{padding:6px 10px}
+      .srv-picker{margin-bottom:8px}
+      .srv-option{padding:7px 10px}
+      .toolbar{margin-bottom:8px}
+      .edit-bar{margin-bottom:8px}
+      .srv-picker-label{margin-bottom:4px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('floor')"><i class="ti ti-layout-grid"></i> Floor</button>
+    <button class="tab" onclick="switchTab('servers')"><i class="ti ti-users"></i> Servers</button>
+    <button class="tab" onclick="switchTab('sections')"><i class="ti ti-layout-sidebar"></i> Sections</button>
+  </div>
+
+  <div class="panel active" id="panel-floor">
+    <div class="floor-layout">
+      <div class="floor-sidebar" id="floor-sidebar">
+        <div class="rotation-info-row" id="rotation-info-row"></div>
+        <div id="srv-picker-wrap">
+          <div class="srv-picker-label">Assign server:</div>
+          <div class="srv-picker" id="srv-picker"></div>
+        </div>
+        <div class="toolbar">
+          <div class="toggle-wrap" onclick="toggleFloorSectionMode()"><div class="sw" id="floor-sec-btn"></div><span class="toggle-label">Sections</span></div>
+          <div class="toolbar-sep"></div>
+          <button class="btn btn-sm" id="edit-mode-btn" onclick="toggleEditMode()"><i class="ti ti-pencil"></i> Edit layout</button>
+          <button class="btn btn-sm" onclick="resetLayout()"><i class="ti ti-refresh"></i> Reset</button>
+          <div class="toolbar-sep"></div>
+          <div class="toggle-wrap" onclick="toggleMarchingAnts()"><div class="sw on" id="anim-btn"></div><span class="toggle-label">Animate</span></div>
+        </div>
+        <div class="edit-bar" id="edit-bar">
+          <span class="edit-bar-label">Edit mode</span>
+          <div class="toolbar-sep"></div>
+          <span style="font-size:11px;color:#888">Add:</span>
+          <div class="tbl-shape" title="Square table" onclick="addTable('square')">
+            <svg width="18" height="18"><rect x="2" y="2" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="tbl-shape" title="Round table" onclick="addTable('circle')">
+            <svg width="18" height="18"><circle cx="9" cy="9" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          </div>
+          <div class="toolbar-sep"></div>
+          <button class="btn btn-sm" onclick="rotateSelected()" id="btn-rotate" style="display:none"><i class="ti ti-rotate-clockwise"></i> Rotate</button>
+          <button class="btn btn-sm" onclick="editSelected()" id="btn-edit-tbl" style="display:none"><i class="ti ti-tag"></i> Rename</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSelected()" id="btn-delete" style="display:none"><i class="ti ti-trash"></i> Delete</button>
+        </div>
+      </div>
+      <div class="floor-canvas-wrap">
+        <div class="canvas-wrap">
+          <canvas id="tableCanvas" width="700" height="700"></canvas>
+        </div>
+        <div id="draw-tools-panel">
+          <div class="dt-btn active" id="dt-pen" onclick="setDrawTool('pen')" title="Pen"><i class="ti ti-pencil"></i></div>
+          <div class="dt-btn" id="dt-eraser" onclick="setDrawTool('eraser')" title="Eraser"><i class="ti ti-eraser"></i></div>
+          <div style="width:100%;height:0.5px;background:#333"></div>
+          <div class="dt-swatch picked" style="background:#ff6b6b" onclick="setDrawColor('#ff6b6b',this)" title="Red"></div>
+          <div class="dt-swatch" style="background:#5dca8a" onclick="setDrawColor('#5dca8a',this)" title="Green"></div>
+          <div class="dt-swatch" style="background:#378ADD" onclick="setDrawColor('#378ADD',this)" title="Blue"></div>
+          <div class="dt-swatch" style="background:#f0c060" onclick="setDrawColor('#f0c060',this)" title="Yellow"></div>
+          <div class="dt-swatch" style="background:#f0f0f0" onclick="setDrawColor('#f0f0f0',this)" title="White"></div>
+          <div style="width:100%;height:0.5px;background:#333"></div>
+          <div class="dt-wbtn picked" id="dw-1" onclick="setDrawWidth(2,this)" title="Thin"><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <div class="dt-wbtn" id="dw-2" onclick="setDrawWidth(4,this)" title="Medium"><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#ccc" stroke-width="3" stroke-linecap="round"/></svg></div>
+          <div class="dt-wbtn" id="dw-3" onclick="setDrawWidth(7,this)" title="Thick"><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#ccc" stroke-width="5" stroke-linecap="round"/></svg></div>
+          <div style="width:100%;height:0.5px;background:#333"></div>
+          <div class="dt-btn" onclick="clearDrawings()" title="Clear all" style="color:#ff6b6b"><i class="ti ti-trash"></i></div>
+        </div>
+        <p class="notice" id="floor-notice">Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-servers">
+    <div class="rotation-controls" id="rotation-controls"></div>
+    <div class="server-list" id="server-list-wrap"></div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <input type="text" id="new-server-name" placeholder="Add server…" style="flex:1;padding:7px 10px;border:0.5px solid #444;border-radius:8px;font-size:13px;background:#1a1a1a;color:#f0f0f0">
+      <button class="btn" onclick="addServer()"><i class="ti ti-plus"></i> Add</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-sections">
+    <div class="floor-layout">
+      <div class="floor-sidebar">
+        <div class="srv-picker-label">Sections:</div>
+        <div id="sec-list"></div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+          <input type="text" id="new-sec-name" placeholder="New section…" style="width:100%;padding:5px 8px;border:0.5px solid #444;border-radius:8px;font-size:12px;background:#1a1a1a;color:#f0f0f0">
+          <div style="display:flex;gap:6px">
+            <select id="new-sec-server" style="flex:1;padding:4px 6px;border:0.5px solid #444;border-radius:8px;font-size:12px;background:#1a1a1a;color:#e0e0e0"></select>
+            <button class="btn btn-sm" onclick="addSection()"><i class="ti ti-plus"></i> Add</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:7px">
+          <button class="btn btn-sm" id="sec-define-btn" onclick="toggleSectionDefineMode()"><i class="ti ti-pencil"></i> Define sections</button>
+          <button class="btn btn-sm" onclick="resetSections()"><i class="ti ti-refresh"></i> Reset</button>
+        </div>
+        <p class="notice" id="sec-notice" style="margin-top:8px">Select a section, then tap a table to auto-assign its server.</p>
+      </div>
+      <div class="floor-canvas-wrap">
+        <div class="canvas-wrap">
+          <canvas id="sectionCanvas" width="700" height="600"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="table-ctx-modal">
+  <div class="modal" style="width:210px;padding:5px">
+    <div id="table-ctx-content"></div>
+  </div>
+</div>
+<div class="modal-wrap" id="server-edit-modal">
+  <div class="modal" style="width:300px">
+    <h3>Edit server</h3>
+    <div class="form-group"><label>Name</label><input type="text" id="edit-srv-name" style="width:100%"></div>
+    <div class="form-group"><label>Color</label><div class="color-swatch-row" id="edit-srv-swatches"></div></div>
+    <div class="form-group"><label>Phone (for SMS)</label><input type="tel" id="edit-srv-phone" style="width:100%" placeholder="+1 555 000 0000"></div>
+    <div class="form-group" style="flex-direction:row;align-items:center;gap:10px"><label style="margin:0;flex:1">SMS notifications</label><input type="checkbox" id="edit-srv-sms" style="width:16px;height:16px;cursor:pointer;accent-color:#5dca8a"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="deleteServer()"><i class="ti ti-trash"></i> Remove</button>
+      <button class="btn" onclick="closeModal('server-edit-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveServerEdit()">Save</button>
+    </div>
+  </div>
+</div>
+<div class="modal-wrap" id="table-edit-modal">
+  <div class="modal" style="width:280px">
+    <h3>Edit table</h3>
+    <div class="form-group"><label>Label</label><input type="text" id="edit-tbl-label" style="width:100%" maxlength="6"></div>
+    <div class="form-group" id="edit-tbl-size-group">
+      <label>Size <span id="edit-tbl-size-val" style="color:#5dca8a;font-weight:500"></span></label>
+      <input type="range" id="edit-tbl-size" min="14" max="60" step="1" style="width:100%">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('table-edit-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTableEdit()">Save</button>
+    </div>
+  </div>
+</div>
+<div class="modal-wrap" id="section-edit-modal">
+  <div class="modal" style="width:300px">
+    <h3>Edit section</h3>
+    <div class="form-group"><label>Name</label><input type="text" id="edit-sec-name" style="width:100%"></div>
+    <div class="form-group"><label>Color</label><div class="color-swatch-row" id="edit-sec-swatches"></div></div>
+    <div class="form-group"><label>Server</label><select id="edit-sec-server" style="width:100%;padding:8px 10px;border:0.5px solid #444;border-radius:8px;font-size:13px;background:#1a1a1a;color:#f0f0f0"></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="deleteSection()"><i class="ti ti-trash"></i> Remove</button>
+      <button class="btn" onclick="closeModal('section-edit-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSectionEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://xsgyoovivlehtzrbytaz.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZ3lvb3ZpdmxlaHR6cmJ5dGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDg2MzYsImV4cCI6MjA5Njg4NDYzNn0.6Kb0EnIJ2QmOxecYzbfMHskztPPglgQKS3K9wiCI8EI';
+let sb=null;
+try{if(typeof supabase!=='undefined')sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);}
+catch(e){console.warn('Supabase init failed, running in local-only mode',e);}
+
+const SWATCHES=['#378ADD','#E24B4A','#639922','#BA7517','#7F77DD','#1D9E75','#D4537E','#D85A30','#5DCAA5','#EF9F27','#aaaaaa','#F0997B'];
+const LAYOUT_VERSION='cv_v2';
+let tables=[],selectedTable=null,selectedServer=null;
+let dragging=false,dragOffX=0,dragOffY=0,dragMoved=false;
+let rotationIndex=0,lastSatServerId=null,editingSrvId=null,editingSrvColor=null;
+let editMode=false,editingTblId=null;
+let servers=[];
+let sections=[],selectedSectionId=null,sectionDefineMode=false,editingSecId=null,editingSecColor=null;
+let floorSectionMode=false;
+let marchingAnts=true;
+let _dashOffset=0,_animFrame=null;
+let drawMode=false,drawStrokes=[],currentDrawStroke=null,drawColor='#ff6b6b',drawWidth=2,drawTool='pen';
+const canvas=document.getElementById('tableCanvas');
+const ctx=canvas.getContext('2d');
+const CW=700,CH=700,BAR_Y=500;
+const DRAW_BTN_X=390,DRAW_BTN_Y=650,DRAW_BTN_R=18;
+
+let _saveTimer=null,_channel=null;
+function save(){
+  try{localStorage.setItem('cv_servers',JSON.stringify(servers));localStorage.setItem('cv_tables',JSON.stringify(tables));localStorage.setItem('cv_rotation',rotationIndex);localStorage.setItem('cv_last_srv',lastSatServerId||'');localStorage.setItem('cv_sections',JSON.stringify(sections));}catch(e){}
+  broadcastState();
+  clearTimeout(_saveTimer);_saveTimer=setTimeout(()=>{_saveTimer=null;pushToCloud();},400);
+}
+function broadcastState(){
+  if(!_channel)return;
+  _channel.send({type:'broadcast',event:'sync',payload:{tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null,sections}});
+}
+async function pushToCloud(){
+  if(!sb)return;
+  try{
+    const{error}=await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null,sections});
+    if(error){
+      const{error:e2}=await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null});
+      if(e2)console.warn('Supabase sync error',e2);
+    }
+  }catch(e){console.warn('Supabase sync error',e);}
+}
+async function load(){
+  // Phase 1: show localStorage data immediately
+  try{
+    const sv=localStorage.getItem('cv_servers'),tb=localStorage.getItem('cv_tables'),ri=localStorage.getItem('cv_rotation'),ls=localStorage.getItem('cv_last_srv'),sc=localStorage.getItem('cv_sections');
+    if(sv)servers=JSON.parse(sv);
+    if(tb)tables=JSON.parse(tb);
+    if(ri)rotationIndex=parseInt(ri)||0;
+    if(ls)lastSatServerId=ls||null;
+    if(sc)sections=JSON.parse(sc);
+  }catch(e){}
+  if(!servers.length){
+    servers=[
+      {id:1,name:'Anni',active:true,tables:0,color:SWATCHES[0]},
+      {id:2,name:'Brody',active:true,tables:0,color:SWATCHES[1]},
+      {id:3,name:'Camdon',active:true,tables:0,color:SWATCHES[2]},
+      {id:4,name:'Angula',active:false,tables:0,color:SWATCHES[3]},
+      {id:5,name:'Taimon',active:false,tables:0,color:SWATCHES[4]}
+    ];
+  }
+  if(!tables.length)initTables(false);
+  // Phase 2: override with authoritative Supabase data
+  try{
+    if(!sb)throw new Error('no sb');
+    const{data,error}=await sb.from('floor_state').select('*').eq('id',1).maybeSingle();
+    if(data&&!error){
+      if(Array.isArray(data.servers))servers=data.servers;
+      if(Array.isArray(data.tables))tables=data.tables;
+      if(Array.isArray(data.sections))sections=data.sections;
+      rotationIndex=data.rotation_index||0;
+      lastSatServerId=data.last_sat_server_id||null;
+    }
+  }catch(e){console.warn('Supabase load failed, using local data');}
+  if(tables.some(t=>t.fresh))startAnim();
+  setupRealtime();
+  startPolling();
+}
+function applyRemoteState(d){
+  if(Array.isArray(d.servers))servers=d.servers;
+  if(Array.isArray(d.tables))tables=d.tables;
+  if(Array.isArray(d.sections))sections=d.sections;
+  rotationIndex=d.rotation_index||0;
+  lastSatServerId=d.last_sat_server_id||null;
+  if(tables.some(t=>t.fresh))startAnim();
+  renderFloorPicker();renderServerList();drawTables();
+  if(document.getElementById('panel-sections').classList.contains('active')){renderSectionList();drawSectionCanvas();}
+}
+function setupRealtime(){
+  if(!sb)return;
+  _channel=sb.channel('floor-sync',{config:{broadcast:{self:false}}});
+  _channel.on('broadcast',{event:'sync'},({payload})=>{
+    applyRemoteState(payload);
+  }).subscribe(status=>console.log('Realtime:',status));
+}
+async function pollOnce(){
+  if(!sb||_saveTimer||dragging||resizing||panning)return;
+  try{
+    const{data,error}=await sb.from('floor_state').select('*').eq('id',1).maybeSingle();
+    if(data&&!error)applyRemoteState(data);
+  }catch(e){}
+}
+function startPolling(){
+  if(!sb)return;
+  setInterval(pollOnce,5000);
+}
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['floor','servers','sections'][i]===t));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+  if(t==='floor'){renderFloorPicker();drawTables();}
+  if(t==='servers')renderServerList();
+  if(t==='sections'){renderSectionList();drawSectionCanvas();}
+}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function getNext(){const a=servers.filter(s=>s.active);return a.length?a[rotationIndex%a.length]:null;}
+function getLastSrv(){return lastSatServerId?servers.find(s=>s.id==lastSatServerId):null;}
+
+function toggleEditMode(){
+  editMode=!editMode;
+  const btn=document.getElementById('edit-mode-btn'),bar=document.getElementById('edit-bar'),notice=document.getElementById('floor-notice');
+  if(editMode){btn.className='btn btn-sm btn-active';btn.innerHTML='<i class="ti ti-pencil"></i> Done editing';bar.classList.add('visible');notice.textContent='Edit mode: drag tables, select one to rotate, rename or delete.';}
+  else{btn.className='btn btn-sm';btn.innerHTML='<i class="ti ti-pencil"></i> Edit layout';bar.classList.remove('visible');notice.textContent='Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.';selectedTable=null;updateEditButtons();}
+  drawTables();
+}
+function applyFloorSectionModeUI(){
+  const btn=document.getElementById('floor-sec-btn'),wrap=document.getElementById('srv-picker-wrap'),notice=document.getElementById('floor-notice');
+  if(floorSectionMode){
+    btn.classList.add('on');
+    wrap.style.opacity='0.35';wrap.style.pointerEvents='none';
+    notice.textContent='Section mode: tap a free table to auto-assign by section.';
+  } else {
+    btn.classList.remove('on');
+    wrap.style.opacity='';wrap.style.pointerEvents='';
+    notice.textContent='Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.';
+  }
+}
+function toggleFloorSectionMode(){
+  floorSectionMode=!floorSectionMode;
+  applyFloorSectionModeUI();
+  try{localStorage.setItem('cv_floor_sec_mode',floorSectionMode?'1':'');}catch(e){}
+}
+function updateEditButtons(){
+  const show=editMode&&selectedTable!=null;
+  ['btn-delete','btn-rotate','btn-edit-tbl'].forEach(id=>document.getElementById(id).style.display=show?'':'none');
+}
+function rotateSelected(){const t=tables.find(t=>t.id===selectedTable);if(!t||t.shape==='circle')return;t.rotated=!t.rotated;save();drawTables();}
+function editSelected(){
+  const t=tables.find(t=>t.id===selectedTable);if(!t)return;
+  editingTblId=t.id;
+  document.getElementById('edit-tbl-label').value=t.label;
+  const sz=t.w||20;
+  const slider=document.getElementById('edit-tbl-size');
+  slider.value=sz;
+  document.getElementById('edit-tbl-size-val').textContent=sz+'px';
+  slider.oninput=()=>document.getElementById('edit-tbl-size-val').textContent=slider.value+'px';
+  document.getElementById('table-edit-modal').classList.add('open');
+}
+function saveTableEdit(){
+  const t=tables.find(t=>t.id===editingTblId);
+  if(t){
+    t.label=document.getElementById('edit-tbl-label').value.trim()||t.label;
+    const sz=parseInt(document.getElementById('edit-tbl-size').value);
+    t.w=sz;t.h=sz;
+  }
+  closeModal('table-edit-modal');save();drawTables();
+}
+
+function renderFloorPicker(){
+  const next=getNext(),last=getLastSrv();
+  document.getElementById('rotation-info-row').innerHTML=`
+    <div class="rot-pill"><span class="rot-pill-label">Next up</span>${next?`<div class="rot-pill-dot" style="background:${next.color}"></div><span class="rot-pill-name">${next.name}</span>`:'<span class="rot-pill-name" style="color:#666">—</span>'}</div>
+    <div class="rot-pill"><span class="rot-pill-label">Last seated</span>${last?`<div class="rot-pill-dot" style="background:${last.color}"></div><span class="rot-pill-name">${last.name}</span>`:'<span class="rot-pill-name" style="color:#666">—</span>'}</div>`;
+  const active=servers.filter(s=>s.active);
+  document.getElementById('srv-picker').innerHTML=
+    `<div class="srv-option${!selectedServer?' active-pick':''}" onclick="pickSrv(null)"><div class="srv-opt-dot" style="background:#444"></div><span class="srv-opt-name" style="color:#666">None</span></div>`+
+    active.map(s=>{
+      const isSel=selectedServer===s.id,isNext=next&&next.id===s.id,isLast=last&&last.id===s.id;
+      return`<div class="srv-option${isSel?' active-pick':''}" onclick="pickSrv(${s.id})">
+        <div class="srv-opt-dot" style="background:${s.color}"></div>
+        <span class="srv-opt-name">${s.name}</span>
+        ${isNext?'<span class="srv-opt-badge badge-next">next</span>':''}
+        ${isLast&&!isNext?'<span class="srv-opt-badge badge-last">last</span>':''}
+        <span class="srv-count">${s.tables}t</span>
+      </div>`;
+    }).join('')||'<div style="padding:10px 13px;font-size:12px;color:#666">No servers on floor</div>';
+}
+function pickSrv(id){selectedServer=id;renderFloorPicker();drawTables();}
+
+function renderServerList(){
+  const next=getNext(),active=servers.filter(s=>s.active),inact=servers.filter(s=>!s.active);
+  document.getElementById('rotation-controls').innerHTML=`<span>Rotation — next up: <strong>${next?next.name:'—'}</strong></span><button class="rot-step-btn" onclick="stepRotation(-1)"><i class="ti ti-chevron-left"></i></button><button class="rot-step-btn" onclick="stepRotation(1)"><i class="ti ti-chevron-right"></i></button>`;
+  const mkRow=s=>{const isNext=next&&next.id===s.id;return`<div class="server-item"><div class="sv-dot" style="background:${s.color}" onclick="openServerEdit(${s.id})" title="Edit"></div><span class="sv-name">${s.name}</span>${isNext?'<span class="sv-next">next</span>':''}${s.smsEnabled&&s.phone?'<span style="font-size:10px;color:#5dca8a;padding:2px 5px;background:#1a2a1a;border-radius:4px">SMS</span>':''}<span class="sv-count">${s.tables}t</span><button class="sv-toggle" onclick="toggleActive(${s.id})">${s.active?'Off floor':'On floor'}</button></div>`;};
+  document.getElementById('server-list-wrap').innerHTML=`<div class="server-section-head">On floor</div>${active.map(mkRow).join('')||'<div style="padding:10px 14px;font-size:12px;color:#666">None active</div>'}<div class="server-section-head" style="border-top:0.5px solid #333">Off floor</div>${inact.map(mkRow).join('')||'<div style="padding:10px 14px;font-size:12px;color:#666">None off floor</div>'}`;
+}
+function stepRotation(dir){const a=servers.filter(s=>s.active);if(!a.length)return;rotationIndex=((rotationIndex+dir)%a.length+a.length)%a.length;save();renderServerList();renderFloorPicker();}
+function toggleActive(id){const s=servers.find(s=>s.id===id);if(!s)return;s.active=!s.active;if(selectedServer===id)selectedServer=null;const a=servers.filter(s=>s.active);rotationIndex=rotationIndex%Math.max(a.length,1);save();renderServerList();renderFloorPicker();drawTables();}
+function addServer(){const inp=document.getElementById('new-server-name'),name=inp.value.trim();if(!name)return;servers.push({id:Date.now(),name,active:true,tables:0,color:SWATCHES[servers.length%SWATCHES.length],phone:'',smsEnabled:false});inp.value='';save();renderServerList();renderFloorPicker();}
+function openServerEdit(id){editingSrvId=id;const s=servers.find(s=>s.id===id);if(!s)return;editingSrvColor=s.color;document.getElementById('edit-srv-name').value=s.name;document.getElementById('edit-srv-swatches').innerHTML=SWATCHES.map(c=>`<div class="swatch${c===s.color?' picked':''}" style="background:${c}" onclick="pickEditColor('${c}',this)"></div>`).join('');document.getElementById('edit-srv-phone').value=s.phone||'';document.getElementById('edit-srv-sms').checked=!!s.smsEnabled;document.getElementById('server-edit-modal').classList.add('open');}
+function pickEditColor(c,el){editingSrvColor=c;document.querySelectorAll('#edit-srv-swatches .swatch').forEach(s=>s.classList.remove('picked'));el.classList.add('picked');}
+function saveServerEdit(){
+  const s=servers.find(s=>s.id===editingSrvId);
+  if(s){
+    s.name=document.getElementById('edit-srv-name').value.trim()||s.name;
+    s.color=editingSrvColor;
+    const newPhone=document.getElementById('edit-srv-phone').value.trim();
+    const newSms=document.getElementById('edit-srv-sms').checked;
+    if(newSms&&newPhone&&!s.smsOptinSent){s.smsOptinSent=true;sendOptinRequest(newPhone);}
+    s.phone=newPhone;s.smsEnabled=newSms;
+  }
+  closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();
+}
+function deleteServer(){tables.forEach(t=>{if(t.server===editingSrvId)t.server=null;});servers=servers.filter(s=>s.id!==editingSrvId);if(selectedServer===editingSrvId)selectedServer=null;const a=servers.filter(s=>s.active);rotationIndex=rotationIndex%Math.max(a.length,1);closeModal('server-edit-modal');save();renderServerList();renderFloorPicker();drawTables();}
+
+function renderSectionList(){
+  const nss=document.getElementById('new-sec-server');
+  if(nss)nss.innerHTML='<option value="">— server —</option>'+servers.filter(s=>s.active).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  const el=document.getElementById('sec-list');
+  if(!sections.length){el.innerHTML='<div style="font-size:12px;color:#666;padding:6px 0">No sections yet.</div>';return;}
+  el.innerHTML='<div class="srv-picker">'+sections.map(sec=>{
+    const isSel=selectedSectionId===sec.id;
+    const opts='<option value="">— server —</option>'+servers.map(s=>`<option value="${s.id}"${s.id===sec.serverId?' selected':''}>${s.name}${s.active?'':' (off)'}</option>`).join('');
+    return`<div class="srv-option${isSel?' active-pick':''}" onclick="pickSection(${sec.id})" style="flex-wrap:wrap;gap:6px">
+      <div class="srv-opt-dot" style="background:${sec.color||'#555'};cursor:pointer;flex-shrink:0" onclick="event.stopPropagation();openSectionEdit(${sec.id})" title="Edit color/name"></div>
+      <span class="srv-opt-name">${sec.name}</span>
+      <select onclick="event.stopPropagation()" onchange="setSectionServer(${sec.id},this.value)" style="padding:2px 5px;border:0.5px solid #444;border-radius:6px;font-size:11px;background:#1a1a1a;color:#e0e0e0;max-width:90px">${opts}</select>
+      <span class="srv-count">${sec.tableIds.length}t</span>
+    </div>`;
+  }).join('')+'</div>';
+}
+function setSectionServer(secId,val){
+  const sec=sections.find(s=>s.id===secId);if(!sec)return;
+  sec.serverId=val?parseInt(val):null;
+  save();renderSectionList();drawSectionCanvas();
+}
+function pickSection(id){selectedSectionId=id;renderSectionList();drawSectionCanvas();}
+function toggleSectionDefineMode(){
+  sectionDefineMode=!sectionDefineMode;
+  const btn=document.getElementById('sec-define-btn'),notice=document.getElementById('sec-notice');
+  if(sectionDefineMode){btn.className='btn btn-sm btn-active';btn.innerHTML='<i class="ti ti-pencil"></i> Done defining';notice.textContent='Define mode: tap a table to add/remove it from the selected section.';}
+  else{btn.className='btn btn-sm';btn.innerHTML='<i class="ti ti-pencil"></i> Define sections';notice.textContent='Select a section, then tap a table to auto-assign its server.';}
+  drawSectionCanvas();
+}
+function addSection(){
+  const inp=document.getElementById('new-sec-name'),name=inp.value.trim();if(!name)return;
+  const srv=document.getElementById('new-sec-server');
+  const serverId=srv&&srv.value?parseInt(srv.value):null;
+  const color=SWATCHES[sections.length%SWATCHES.length];
+  sections.push({id:Date.now(),name,serverId,color,tableIds:[]});
+  inp.value='';save();renderSectionList();drawSectionCanvas();
+}
+function openSectionEdit(id){
+  editingSecId=id;const sec=sections.find(s=>s.id===id);if(!sec)return;
+  editingSecColor=sec.color||SWATCHES[0];
+  document.getElementById('edit-sec-name').value=sec.name;
+  document.getElementById('edit-sec-swatches').innerHTML=SWATCHES.map(c=>`<div class="swatch${c===editingSecColor?' picked':''}" style="background:${c}" onclick="pickSecColor('${c}',this)"></div>`).join('');
+  document.getElementById('edit-sec-server').innerHTML=`<option value="">None</option>`+servers.map(s=>`<option value="${s.id}"${s.id===sec.serverId?' selected':''}>${s.name}${s.active?'':' (off)'}</option>`).join('');
+  document.getElementById('section-edit-modal').classList.add('open');
+}
+function pickSecColor(c,el){editingSecColor=c;document.querySelectorAll('#edit-sec-swatches .swatch').forEach(s=>s.classList.remove('picked'));el.classList.add('picked');}
+function saveSectionEdit(){
+  const sec=sections.find(s=>s.id===editingSecId);if(!sec)return;
+  sec.name=document.getElementById('edit-sec-name').value.trim()||sec.name;
+  sec.color=editingSecColor;
+  const v=document.getElementById('edit-sec-server').value;sec.serverId=v?parseInt(v):null;
+  closeModal('section-edit-modal');save();renderSectionList();drawSectionCanvas();
+}
+function deleteSection(){
+  sections=sections.filter(s=>s.id!==editingSecId);
+  if(selectedSectionId===editingSecId)selectedSectionId=null;
+  closeModal('section-edit-modal');save();renderSectionList();drawSectionCanvas();
+}
+function resetSections(){sections.forEach(s=>s.tableIds=[]);save();renderSectionList();drawSectionCanvas();}
+function handleSectionTap(cx,cy){
+  const hit=getTableAt(cx,cy);if(!hit)return;
+  if(sectionDefineMode){
+    if(!selectedSectionId)return;
+    const sec=sections.find(s=>s.id===selectedSectionId);if(!sec)return;
+    if(sec.tableIds.includes(hit.id)){sec.tableIds=sec.tableIds.filter(id=>id!==hit.id);}
+    else{sections.forEach(s=>{s.tableIds=s.tableIds.filter(id=>id!==hit.id);});sec.tableIds.push(hit.id);}
+    save();renderSectionList();drawSectionCanvas();
+  } else {
+    const sec=sections.find(s=>s.tableIds.includes(hit.id));
+    const notice=document.getElementById('sec-notice');
+    if(!sec){notice.textContent='Table '+hit.label+' isn\'t in any section — use Define mode to assign it.';return;}
+    if(!sec.serverId){notice.textContent='Section "'+sec.name+'" has no server — pick one from the dropdown above.';return;}
+    if(!hit.server&&!hit.paid){assignServer(hit,sec.serverId);}
+    else if(marchingAnts&&hit.fresh){hit.fresh=false;save();drawSectionCanvas();drawTables();}
+    else{openTableCtx(hit);}
+    notice.textContent='Select a section, then tap a table to auto-assign its server.';
+    drawSectionCanvas();
+  }
+}
+
+function formatElapsed(seatedAt){const mins=Math.floor((Date.now()-seatedAt)/60000);if(mins<60)return mins+'m';return Math.floor(mins/60)+'h'+(mins%60)+'m';}
+function mk(id,shape,x,y,label,rotated){return{id,shape,x,y,label,rotated:!!rotated,w:shape==='circle'?20:44,h:shape==='circle'?20:34,server:null,dirty:false,paid:false,isBar:false,seatedAt:null};}
+function mkB(id,x,y,label){return{id,shape:'circle',x,y,label,rotated:false,w:18,h:18,server:null,dirty:false,paid:false,isBar:true};}
+
+function initTables(doSave=true){
+  tables=[
+    // Row 1 — booths left side, grouped squares, singles, diamonds
+    mk(6,  'circle', 68,  80,  '6'),
+    mk(7,  'square', 192, 80,  '7'),
+    mk(75, 'square', 242, 80,  '7.5'),
+    mk(9,  'square', 292, 80,  '9'),
+    mk(12, 'square', 390, 80,  '12'),
+    mk(15, 'square', 468, 80,  '15'),
+    mk(17, 'square', 556, 75,  '17',  true),
+    mk(20, 'square', 636, 75,  '20',  true),
+
+    // Row 2 — booth 5, diamonds scattered
+    mk(5,  'circle', 68,  180, '5'),
+    mk(8,  'square', 192, 175, '8',   true),
+    mk(10, 'square', 288, 175, '10',  true),
+    mk(13, 'square', 376, 175, '13',  true),
+    mk(16, 'square', 460, 170, '16',  true),
+    mk(18, 'square', 546, 170, '18',  true),
+    mk(21, 'square', 626, 165, '21',  true),
+    mk(215,'square', 672, 195, '21.5',true),
+
+    // Row 3 — booth 4, more diamonds
+    mk(4,  'circle', 100, 280, '4'),
+    mk(11, 'square', 310, 255, '11',  true),
+    mk(14, 'square', 388, 255, '14',  true),
+    mk(19, 'square', 546, 255, '19',  true),
+
+    // Row 4 — booths 1 2 3
+    mk(3,  'circle', 296, 360, '3'),
+    mk(2,  'circle', 412, 360, '2'),
+    mk(1,  'circle', 528, 360, '1'),
+
+    // Bar stools
+    mkB(101, 210, 548, 'B1'),
+    mkB(102, 300, 548, 'B2'),
+    mkB(103, 390, 548, 'B3'),
+    mkB(104, 480, 548, 'B4'),
+    mkB(105, 570, 548, 'B5'),
+  ];
+  if(doSave)save();
+  drawTables();
+}
+
+function addTable(shape){tables.push({id:Date.now(),shape,x:100,y:100,label:`T${tables.filter(t=>!t.isBar).length+1}`,rotated:false,w:shape==='circle'?20:44,h:shape==='circle'?20:34,server:null,dirty:false,paid:false,isBar:false});save();drawTables();}
+function deleteSelected(){if(selectedTable==null)return;const t=tables.find(t=>t.id===selectedTable);if(t&&t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}tables=tables.filter(t=>t.id!==selectedTable);selectedTable=null;updateEditButtons();save();renderFloorPicker();renderServerList();drawTables();}
+function resetLayout(){tables.forEach(t=>{t.server=null;t.dirty=false;t.paid=false;t.fresh=false;t.seatedAt=null;});servers.forEach(s=>s.tables=0);selectedTable=null;selectedServer=null;updateEditButtons();save();renderFloorPicker();renderServerList();drawTables();}
+
+function toggleDrawMode(){
+  drawMode=!drawMode;
+  const panel=document.getElementById('draw-tools-panel');
+  panel.style.display=drawMode?'flex':'none';
+  drawTables();
+}
+function setDrawColor(c,el){
+  drawColor=c;
+  document.querySelectorAll('.dt-swatch').forEach(s=>s.classList.remove('picked'));
+  el.classList.add('picked');
+}
+function setDrawWidth(w,el){
+  drawWidth=w;
+  document.querySelectorAll('.dt-wbtn').forEach(b=>b.classList.remove('picked'));
+  el.classList.add('picked');
+}
+function setDrawTool(tool){
+  drawTool=tool;
+  document.querySelectorAll('.dt-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('dt-'+tool).classList.add('active');
+}
+function clearDrawings(){drawStrokes=[];drawTables();}
+
+function hexLuma(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 0.299*r+0.587*g+0.114*b;}
+
+let vpX=0,vpY=0,vpZ=1;
+let panning=false,panStartX=0,panStartY=0,panOriginX=0,panOriginY=0;
+let pinchDist=0;
+
+function clampVP(){
+  const minZ=0.4,maxZ=3;
+  vpZ=Math.max(minZ,Math.min(maxZ,vpZ));
+}
+
+function screenToCanvas(sx,sy){
+  const r=canvas.getBoundingClientRect(),scaleX=CW/r.width,scaleY=CH/r.height;
+  const px=(sx-r.left)*scaleX,py=(sy-r.top)*scaleY;
+  return{x:(px-vpX)/vpZ,y:(py-vpY)/vpZ};
+}
+
+function tR(t){return t.w||20;}
+function tHalf(t){return{hw:t.shape==='circle'?tR(t):(t.w||44)/2,hh:t.shape==='circle'?tR(t):(t.h||34)/2};}
+
+function toggleMarchingAnts(){
+  marchingAnts=!marchingAnts;
+  const btn=document.getElementById('anim-btn');
+  btn.classList.toggle('on',marchingAnts);
+  if(marchingAnts){if(tables.some(t=>t.fresh))startAnim();}
+  else{if(_animFrame){cancelAnimationFrame(_animFrame);_animFrame=null;_dashOffset=0;}drawTables();}
+  try{localStorage.setItem('cv_marching_ants',marchingAnts?'1':'0');}catch(e){}
+}
+function startAnim(){
+  if(!marchingAnts||_animFrame)return;
+  function tick(ts){
+    if(!tables.some(t=>t.fresh)){_animFrame=null;_dashOffset=0;return;}
+    _dashOffset=(ts*0.01)%20;
+    drawTables();
+    _animFrame=requestAnimationFrame(tick);
+  }
+  _animFrame=requestAnimationFrame(tick);
+}
+function drawTables(){
+  ctx.clearRect(0,0,CW,CH);
+  ctx.save();
+  ctx.translate(vpX,vpY);
+  ctx.scale(vpZ,vpZ);
+
+  ctx.strokeStyle='#2a2a2a';ctx.lineWidth=1/vpZ;ctx.setLineDash([6/vpZ,4/vpZ]);
+  ctx.beginPath();ctx.moveTo(20,BAR_Y);ctx.lineTo(CW-20,BAR_Y);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#444';ctx.font=`400 ${10/vpZ}px system-ui,sans-serif`;ctx.textAlign='left';
+  ctx.fillText('Bar seating',22,BAR_Y-6);
+
+  tables.forEach(t=>{
+    const isSel=editMode&&t.id===selectedTable;
+    const srv=t.server?servers.find(s=>s.id===t.server):null;
+    const R=tR(t);
+    const hw=(t.w||44)/2,hh=(t.h||34)/2;
+    ctx.save();
+    if(t.dirty){ctx.fillStyle='#2a2000';ctx.strokeStyle='#c08000';ctx.lineWidth=1.5/vpZ;}
+    else if(t.paid){ctx.fillStyle='#2e2e2e';ctx.strokeStyle=isSel?'#5dca8a':'#444';ctx.lineWidth=(isSel?2.5:1.5)/vpZ;}
+    else if(srv){ctx.fillStyle=srv.color;ctx.strokeStyle=isSel?'#fff':srv.color;ctx.lineWidth=(isSel?3:2)/vpZ;}
+    else{ctx.fillStyle='#fff';ctx.strokeStyle=isSel?'#5dca8a':'#555';ctx.lineWidth=(isSel?2.5:1)/vpZ;}
+
+    if(t.shape==='circle'){
+      ctx.beginPath();ctx.arc(t.x,t.y,R,0,Math.PI*2);ctx.fill();ctx.stroke();
+    } else if(t.rotated){
+      ctx.beginPath();ctx.moveTo(t.x,t.y-R);ctx.lineTo(t.x+R,t.y);ctx.lineTo(t.x,t.y+R);ctx.lineTo(t.x-R,t.y);ctx.closePath();ctx.fill();ctx.stroke();
+    } else {
+      ctx.beginPath();ctx.roundRect(t.x-hw,t.y-hh,hw*2,hh*2,3);ctx.fill();ctx.stroke();
+    }
+
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    const lbl=t.label;
+    const fs=Math.max(7,Math.min(12,R*0.55)),fs2=Math.max(6,Math.min(9,R*0.4));
+    const yOff=srv||t.dirty||t.paid?R*0.25:0;
+    if(t.dirty){
+      ctx.fillStyle='#c08000';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-yOff);
+      ctx.font=`400 ${fs2}px system-ui,sans-serif`;ctx.fillText('dirty',t.x,t.y+yOff);
+    } else if(t.paid){
+      ctx.fillStyle='#666';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-yOff);
+      ctx.font=`400 ${fs2}px system-ui,sans-serif`;ctx.fillStyle='#555';ctx.fillText('paid',t.x,t.y+yOff);
+      if(t.seatedAt){const fs3=Math.max(6,Math.min(9,R*0.38));ctx.font=`400 ${fs3}px system-ui,sans-serif`;ctx.fillStyle='#444';ctx.fillText(formatElapsed(t.seatedAt),t.x,t.y+yOff+fs2+2);}
+    } else if(srv){
+      const tc=hexLuma(srv.color)>160?'#111':'#fff';
+      ctx.fillStyle=tc;ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y-yOff);
+      ctx.font=`600 ${fs2}px system-ui,sans-serif`;ctx.fillText(srv.name.substring(0,6),t.x,t.y+yOff);
+      if(t.seatedAt){const fs3=Math.max(6,Math.min(9,R*0.38));ctx.font=`400 ${fs3}px system-ui,sans-serif`;ctx.fillStyle=hexLuma(srv.color)>160?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.6)';ctx.fillText(formatElapsed(t.seatedAt),t.x,t.y+yOff+fs2+2);}
+    } else {
+      ctx.fillStyle='#555';ctx.font=`700 ${fs}px system-ui,sans-serif`;ctx.fillText(lbl,t.x,t.y);
+    }
+
+    if(isSel){
+      ctx.strokeStyle='#5dca8a';ctx.lineWidth=1.5/vpZ;ctx.setLineDash([4/vpZ,3/vpZ]);
+      const pad=6;
+      if(t.shape==='circle'){ctx.beginPath();ctx.arc(t.x,t.y,R+pad,0,Math.PI*2);ctx.stroke();}
+      else if(t.rotated){const r=R+pad;ctx.beginPath();ctx.moveTo(t.x,t.y-r);ctx.lineTo(t.x+r,t.y);ctx.lineTo(t.x,t.y+r);ctx.lineTo(t.x-r,t.y);ctx.closePath();ctx.stroke();}
+      else{ctx.beginPath();ctx.roundRect(t.x-hw-pad,t.y-hh-pad,(hw+pad)*2,(hh+pad)*2,5);ctx.stroke();}
+      ctx.setLineDash([]);
+
+      const hs=6/vpZ;
+      ctx.fillStyle='#5dca8a';
+      const handles=getHandlePositions(t);
+      handles.forEach(h=>{ctx.beginPath();ctx.arc(h.x,h.y,hs,0,Math.PI*2);ctx.fill();});
+    }
+    ctx.restore();
+    if(marchingAnts&&t.fresh){
+      ctx.save();
+      ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=2.5/vpZ;
+      ctx.setLineDash([6/vpZ,4/vpZ]);ctx.lineDashOffset=-_dashOffset/vpZ;
+      if(t.shape==='circle'){ctx.beginPath();ctx.arc(t.x,t.y,R+7,0,Math.PI*2);ctx.stroke();}
+      else if(t.rotated){ctx.beginPath();ctx.moveTo(t.x,t.y-(R+7));ctx.lineTo(t.x+(R+7),t.y);ctx.lineTo(t.x,t.y+(R+7));ctx.lineTo(t.x-(R+7),t.y);ctx.closePath();ctx.stroke();}
+      else{ctx.beginPath();ctx.roundRect(t.x-hw-7,t.y-hh-7,(hw+7)*2,(hh+7)*2,5);ctx.stroke();}
+      ctx.setLineDash([]);ctx.restore();
+    }
+  });
+
+  // Draw button indicator
+  ctx.save();
+  if(drawMode){
+    ctx.strokeStyle='rgba(93,202,138,0.5)';ctx.lineWidth=1.5/vpZ;ctx.setLineDash([3/vpZ,3/vpZ]);
+    ctx.beginPath();ctx.arc(DRAW_BTN_X,DRAW_BTN_Y,DRAW_BTN_R,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1/vpZ;
+    ctx.beginPath();ctx.arc(DRAW_BTN_X,DRAW_BTN_Y,DRAW_BTN_R,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.restore();
+
+  // Render strokes
+  drawStrokes.forEach(stroke=>{
+    if(stroke.points.length<2)return;
+    ctx.save();
+    if(stroke.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';}
+    else{ctx.strokeStyle=stroke.color;}
+    ctx.lineWidth=stroke.width/vpZ;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(stroke.points[0].x,stroke.points[0].y);
+    for(let i=1;i<stroke.points.length;i++)ctx.lineTo(stroke.points[i].x,stroke.points[i].y);
+    ctx.stroke();ctx.restore();
+  });
+
+  ctx.restore();
+}
+
+const sCanvas=document.getElementById('sectionCanvas');
+const sCtx=sCanvas.getContext('2d');
+function screenToSCanvas(sx,sy){
+  const r=sCanvas.getBoundingClientRect(),scaleX=CW/r.width,scaleY=CH/r.height;
+  const px=(sx-r.left)*scaleX,py=(sy-r.top)*scaleY;
+  return{x:(px-vpX)/vpZ,y:(py-vpY)/vpZ};
+}
+function drawSectionCanvas(){
+  sCtx.clearRect(0,0,CW,CH);
+  sCtx.save();
+  sCtx.translate(vpX,vpY);
+  sCtx.scale(vpZ,vpZ);
+  sCtx.strokeStyle='#2a2a2a';sCtx.lineWidth=1/vpZ;sCtx.setLineDash([6/vpZ,4/vpZ]);
+  sCtx.beginPath();sCtx.moveTo(20,BAR_Y);sCtx.lineTo(CW-20,BAR_Y);sCtx.stroke();
+  sCtx.setLineDash([]);
+  sCtx.fillStyle='#444';sCtx.font=`400 ${10/vpZ}px system-ui,sans-serif`;sCtx.textAlign='left';
+  sCtx.fillText('Bar seating',22,BAR_Y-6);
+  tables.forEach(t=>{
+    const sec=sections.find(s=>s.tableIds.includes(t.id));
+    const srv=sec?servers.find(s=>s.id===sec.serverId):null;
+    const isSel=sectionDefineMode&&sec&&sec.id===selectedSectionId;
+    const R=tR(t),hw=(t.w||44)/2,hh=(t.h||34)/2;
+    sCtx.save();
+    const secColor=sec?sec.color||'#555':null;
+    if(secColor){sCtx.fillStyle=secColor;sCtx.strokeStyle=isSel?'#fff':secColor;sCtx.lineWidth=(isSel?3:2)/vpZ;}
+    else{sCtx.fillStyle='#fff';sCtx.strokeStyle='#555';sCtx.lineWidth=1/vpZ;}
+    if(t.shape==='circle'){sCtx.beginPath();sCtx.arc(t.x,t.y,R,0,Math.PI*2);sCtx.fill();sCtx.stroke();}
+    else if(t.rotated){sCtx.beginPath();sCtx.moveTo(t.x,t.y-R);sCtx.lineTo(t.x+R,t.y);sCtx.lineTo(t.x,t.y+R);sCtx.lineTo(t.x-R,t.y);sCtx.closePath();sCtx.fill();sCtx.stroke();}
+    else{sCtx.beginPath();sCtx.roundRect(t.x-hw,t.y-hh,hw*2,hh*2,3);sCtx.fill();sCtx.stroke();}
+    sCtx.textAlign='center';sCtx.textBaseline='middle';
+    const fs=Math.max(7,Math.min(12,R*0.55)),fs2=Math.max(6,Math.min(9,R*0.4));
+    const yOff=secColor?R*0.25:0;
+    if(secColor){
+      const tc=hexLuma(secColor)>160?'#111':'#fff';
+      sCtx.fillStyle=tc;sCtx.font=`700 ${fs}px system-ui,sans-serif`;sCtx.fillText(t.label,t.x,t.y-yOff);
+      sCtx.font=`600 ${fs2}px system-ui,sans-serif`;sCtx.fillText(sec.name.substring(0,6),t.x,t.y+yOff);
+    } else {
+      sCtx.fillStyle='#555';sCtx.font=`700 ${fs}px system-ui,sans-serif`;sCtx.fillText(t.label,t.x,t.y);
+    }
+    if(isSel){
+      sCtx.strokeStyle='rgba(255,255,255,0.8)';sCtx.lineWidth=2/vpZ;sCtx.setLineDash([4/vpZ,3/vpZ]);
+      const pad=5;
+      if(t.shape==='circle'){sCtx.beginPath();sCtx.arc(t.x,t.y,R+pad,0,Math.PI*2);sCtx.stroke();}
+      else if(t.rotated){const r=R+pad;sCtx.beginPath();sCtx.moveTo(t.x,t.y-r);sCtx.lineTo(t.x+r,t.y);sCtx.lineTo(t.x,t.y+r);sCtx.lineTo(t.x-r,t.y);sCtx.closePath();sCtx.stroke();}
+      else{sCtx.beginPath();sCtx.roundRect(t.x-hw-pad,t.y-hh-pad,(hw+pad)*2,(hh+pad)*2,5);sCtx.stroke();}
+      sCtx.setLineDash([]);
+    }
+    sCtx.restore();
+  });
+  sCtx.restore();
+}
+
+function getHandlePositions(t){
+  const R=tR(t),hw=(t.w||44)/2,hh=(t.h||34)/2;
+  if(t.shape==='circle')return[{x:t.x+R,y:t.y,dir:'se'}];
+  if(t.rotated)return[{x:t.x+R,y:t.y,dir:'se'}];
+  return[
+    {x:t.x+hw,y:t.y,dir:'e'},
+    {x:t.x,y:t.y+hh,dir:'s'},
+    {x:t.x+hw,y:t.y+hh,dir:'se'},
+  ];
+}
+
+function getTableAt(cx,cy){
+  for(let i=tables.length-1;i>=0;i--){
+    const t=tables[i];const R=tR(t),hw=(t.w||44)/2,hh=(t.h||34)/2;
+    if(t.shape==='circle'){if(Math.hypot(cx-t.x,cy-t.y)<R+3)return t;}
+    else if(t.rotated){if(Math.abs(cx-t.x)+Math.abs(cy-t.y)<R+3)return t;}
+    else{if(Math.abs(cx-t.x)<hw+3&&Math.abs(cy-t.y)<hh+3)return t;}
+  }return null;
+}
+
+let resizing=false,resizeDir='',resizeStartX=0,resizeStartY=0,resizeOrigW=0,resizeOrigH=0;
+
+function getHandleAt(cx,cy){
+  if(!editMode||selectedTable==null)return null;
+  const t=tables.find(t=>t.id===selectedTable);if(!t)return null;
+  const handles=getHandlePositions(t);
+  const hitR=10/vpZ;
+  for(const h of handles){if(Math.hypot(cx-h.x,cy-h.y)<hitR)return h;}
+  return null;
+}
+
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=canvas.getBoundingClientRect(),scaleX=CW/r.width,scaleY=CH/r.height;
+  const mx=(e.clientX-r.left)*scaleX,my=(e.clientY-r.top)*scaleY;
+  const delta=e.deltaY>0?0.9:1.1;
+  const newZ=Math.max(0.4,Math.min(3,vpZ*delta));
+  vpX=mx-(mx-vpX)*(newZ/vpZ);
+  vpY=my-(my-vpY)*(newZ/vpZ);
+  vpZ=newZ;
+  drawTables();
+},{passive:false});
+
+canvas.addEventListener('mousedown',e=>{
+  const{x,y}=screenToCanvas(e.clientX,e.clientY);dragMoved=false;
+  if(!editMode&&Math.hypot(x-DRAW_BTN_X,y-DRAW_BTN_Y)<DRAW_BTN_R){toggleDrawMode();return;}
+  if(drawMode&&!editMode){currentDrawStroke={color:drawColor,width:drawWidth,tool:drawTool,points:[{x,y}]};drawStrokes.push(currentDrawStroke);return;}
+  const handle=getHandleAt(x,y);
+  if(handle){
+    const t=tables.find(t=>t.id===selectedTable);
+    resizing=true;resizeDir=handle.dir;resizeStartX=x;resizeStartY=y;
+    resizeOrigW=t.w||44;resizeOrigH=t.h||34;
+    return;
+  }
+  const hit=getTableAt(x,y);
+  if(hit){
+    selectedTable=hit.id;
+    if(editMode){dragging=true;dragOffX=x-hit.x;dragOffY=y-hit.y;updateEditButtons();}
+  } else {
+    selectedTable=null;
+    if(editMode){updateEditButtons();}
+    else{panning=true;panStartX=e.clientX;panStartY=e.clientY;panOriginX=vpX;panOriginY=vpY;}
+  }
+  drawTables();
+});
+canvas.addEventListener('mousemove',e=>{
+  if(drawMode&&currentDrawStroke){const{x,y}=screenToCanvas(e.clientX,e.clientY);currentDrawStroke.points.push({x,y});drawTables();return;}
+  if(resizing){
+    const{x,y}=screenToCanvas(e.clientX,e.clientY);
+    const t=tables.find(t=>t.id===selectedTable);if(!t)return;
+    const dx=x-resizeStartX,dy=y-resizeStartY;
+    if(resizeDir==='e'||resizeDir==='se')t.w=Math.max(14,Math.min(120,resizeOrigW+dx*2));
+    if(resizeDir==='s'||resizeDir==='se')t.h=Math.max(14,Math.min(120,resizeOrigH+dy*2));
+    if(resizeDir==='se'||t.shape==='circle'||t.rotated){const s=Math.max(14,Math.min(120,Math.max(resizeOrigW+dx*2,resizeOrigH+dy*2)));t.w=s;t.h=s;}
+    drawTables();return;
+  }
+  if(panning){
+    const r=canvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
+    vpX=panOriginX+(e.clientX-panStartX)*sx;
+    vpY=panOriginY+(e.clientY-panStartY)*sy;
+    drawTables();return;
+  }
+  if(!dragging||!editMode)return;dragMoved=true;
+  const{x,y}=screenToCanvas(e.clientX,e.clientY);
+  const t=tables.find(t=>t.id===selectedTable);
+  if(t){t.x=x-dragOffX;t.y=y-dragOffY;drawTables();}
+});
+canvas.addEventListener('mouseup',e=>{
+  if(drawMode){currentDrawStroke=null;return;}
+  if(resizing){resizing=false;save();return;}
+  if(panning){panning=false;return;}
+  if(!dragMoved&&selectedTable!=null){
+    const t=tables.find(t=>t.id===selectedTable);
+    if(t&&!editMode){
+      if(floorSectionMode){
+        const sec=sections.find(s=>s.tableIds.includes(t.id));
+        const fn=document.getElementById('floor-notice');
+        if(!sec){fn.textContent='Table '+t.label+' isn\'t in any section — assign it in the Sections tab.';}
+        else if(!sec.serverId){fn.textContent='Section "'+sec.name+'" has no server — set one in the Sections tab.';}
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
+        else if(t.server||t.dirty||t.paid){openTableCtx(t);}
+        else{assignServer(t,sec.serverId);}
+      } else {
+        if(selectedServer&&!t.server&&!t.paid)assignServer(t,selectedServer);
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
+        else if(t.server||t.dirty||t.paid)openTableCtx(t);
+      }
+    }
+  }
+  if(dragging&&dragMoved)save();
+  dragging=false;
+});
+canvas.addEventListener('mouseleave',()=>{currentDrawStroke=null;if(resizing){resizing=false;save();}panning=false;if(dragging&&dragMoved)save();dragging=false;});
+
+let sDragMoved=false,sPanning=false,sPanStartX=0,sPanStartY=0,sPanOriginX=0,sPanOriginY=0,sPinchDist=0;
+sCanvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=sCanvas.getBoundingClientRect(),scaleX=CW/r.width,scaleY=CH/r.height;
+  const mx=(e.clientX-r.left)*scaleX,my=(e.clientY-r.top)*scaleY;
+  const delta=e.deltaY>0?0.9:1.1;
+  const newZ=Math.max(0.4,Math.min(3,vpZ*delta));
+  vpX=mx-(mx-vpX)*(newZ/vpZ);vpY=my-(my-vpY)*(newZ/vpZ);vpZ=newZ;
+  drawSectionCanvas();
+},{passive:false});
+sCanvas.addEventListener('mousedown',e=>{
+  const{x,y}=screenToSCanvas(e.clientX,e.clientY);sDragMoved=false;
+  if(!getTableAt(x,y)){sPanning=true;sPanStartX=e.clientX;sPanStartY=e.clientY;sPanOriginX=vpX;sPanOriginY=vpY;}
+});
+sCanvas.addEventListener('mousemove',e=>{
+  if(!sPanning)return;sDragMoved=true;
+  const r=sCanvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
+  vpX=sPanOriginX+(e.clientX-sPanStartX)*sx;vpY=sPanOriginY+(e.clientY-sPanStartY)*sy;
+  drawSectionCanvas();
+});
+sCanvas.addEventListener('mouseup',e=>{
+  sPanning=false;
+  if(!sDragMoved){const{x,y}=screenToSCanvas(e.clientX,e.clientY);handleSectionTap(x,y);}
+});
+sCanvas.addEventListener('mouseleave',()=>{sPanning=false;});
+sCanvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){sPinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);sPanning=false;return;}
+  const{x,y}=screenToSCanvas(e.touches[0].clientX,e.touches[0].clientY);sDragMoved=false;
+  if(!getTableAt(x,y)){sPanning=true;sPanStartX=e.touches[0].clientX;sPanStartY=e.touches[0].clientY;sPanOriginX=vpX;sPanOriginY=vpY;}
+},{passive:false});
+sCanvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){
+    const r=sCanvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
+    const newDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    const midX=((e.touches[0].clientX+e.touches[1].clientX)/2-r.left)*sx;
+    const midY=((e.touches[0].clientY+e.touches[1].clientY)/2-r.top)*sy;
+    const delta=newDist/sPinchDist;
+    const newZ=Math.max(0.4,Math.min(3,vpZ*delta));
+    vpX=midX-(midX-vpX)*(newZ/vpZ);vpY=midY-(midY-vpY)*(newZ/vpZ);vpZ=newZ;sPinchDist=newDist;
+    drawSectionCanvas();return;
+  }
+  if(!sPanning)return;sDragMoved=true;
+  const r=sCanvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
+  vpX=sPanOriginX+(e.touches[0].clientX-sPanStartX)*sx;vpY=sPanOriginY+(e.touches[0].clientY-sPanStartY)*sy;
+  drawSectionCanvas();
+},{passive:false});
+sCanvas.addEventListener('touchend',e=>{
+  if(e.touches.length>0)return;sPanning=false;
+  if(!sDragMoved){const t=e.changedTouches[0];const{x,y}=screenToSCanvas(t.clientX,t.clientY);handleSectionTap(x,y);}
+});
+
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===2){
+    currentDrawStroke=null;
+    pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    panning=false;dragging=false;resizing=false;return;
+  }
+  const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);dragMoved=false;
+  if(!editMode&&Math.hypot(x-DRAW_BTN_X,y-DRAW_BTN_Y)<DRAW_BTN_R){toggleDrawMode();return;}
+  if(drawMode&&!editMode){currentDrawStroke={color:drawColor,width:drawWidth,tool:drawTool,points:[{x,y}]};drawStrokes.push(currentDrawStroke);return;}
+  const handle=getHandleAt(x,y);
+  if(handle){
+    const t=tables.find(t=>t.id===selectedTable);
+    resizing=true;resizeDir=handle.dir;resizeStartX=x;resizeStartY=y;
+    resizeOrigW=t.w||44;resizeOrigH=t.h||34;return;
+  }
+  const hit=getTableAt(x,y);
+  if(hit){
+    selectedTable=hit.id;
+    if(editMode){dragging=true;dragOffX=x-hit.x;dragOffY=y-hit.y;updateEditButtons();}
+  } else {
+    selectedTable=null;
+    if(editMode)updateEditButtons();
+    else{panning=true;panStartX=e.touches[0].clientX;panStartY=e.touches[0].clientY;panOriginX=vpX;panOriginY=vpY;}
+  }
+  drawTables();
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(drawMode&&currentDrawStroke&&e.touches.length===1){const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);currentDrawStroke.points.push({x,y});drawTables();return;}
+  if(e.touches.length===2){
+    const r=canvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
+    const newDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    const midX=((e.touches[0].clientX+e.touches[1].clientX)/2-r.left)*sx;
+    const midY=((e.touches[0].clientY+e.touches[1].clientY)/2-r.top)*sy;
+    const delta=newDist/pinchDist;
+    const newZ=Math.max(0.4,Math.min(3,vpZ*delta));
+    vpX=midX-(midX-vpX)*(newZ/vpZ);
+    vpY=midY-(midY-vpY)*(newZ/vpZ);
+    vpZ=newZ;pinchDist=newDist;
+    drawTables();return;
+  }
+  if(resizing){
+    const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);
+    const t=tables.find(t=>t.id===selectedTable);if(!t)return;
+    const dx=x-resizeStartX,dy=y-resizeStartY;
+    if(resizeDir==='e'||resizeDir==='se')t.w=Math.max(14,Math.min(120,resizeOrigW+dx*2));
+    if(resizeDir==='s'||resizeDir==='se')t.h=Math.max(14,Math.min(120,resizeOrigH+dy*2));
+    if(resizeDir==='se'||t.shape==='circle'||t.rotated){const s=Math.max(14,Math.min(120,Math.max(resizeOrigW+dx*2,resizeOrigH+dy*2)));t.w=s;t.h=s;}
+    drawTables();return;
+  }
+  if(panning){
+    const r=canvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
+    vpX=panOriginX+(e.touches[0].clientX-panStartX)*sx;
+    vpY=panOriginY+(e.touches[0].clientY-panStartY)*sy;
+    drawTables();return;
+  }
+  if(!dragging||!editMode)return;dragMoved=true;
+  const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);
+  const t=tables.find(t=>t.id===selectedTable);
+  if(t){t.x=x-dragOffX;t.y=y-dragOffY;drawTables();}
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  if(e.touches.length>0)return;
+  if(drawMode){currentDrawStroke=null;return;}
+  if(resizing){resizing=false;save();return;}
+  if(panning){panning=false;return;}
+  if(!dragMoved&&selectedTable!=null){
+    const t=tables.find(t=>t.id===selectedTable);
+    if(t&&!editMode){
+      if(floorSectionMode){
+        const sec=sections.find(s=>s.tableIds.includes(t.id));
+        const fn=document.getElementById('floor-notice');
+        if(!sec){fn.textContent='Table '+t.label+' isn\'t in any section — assign it in the Sections tab.';}
+        else if(!sec.serverId){fn.textContent='Section "'+sec.name+'" has no server — set one in the Sections tab.';}
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
+        else if(t.server||t.dirty||t.paid){openTableCtx(t);}
+        else{assignServer(t,sec.serverId);}
+      } else {
+        if(selectedServer&&!t.server&&!t.paid)assignServer(t,selectedServer);
+        else if(marchingAnts&&t.fresh){t.fresh=false;save();drawTables();}
+        else if(t.server||t.dirty||t.paid)openTableCtx(t);
+      }
+    }
+  }
+  if(dragging&&dragMoved)save();
+  dragging=false;
+});
+
+function assignServer(t,srvId){
+  if(t.server){const old=servers.find(s=>s.id===t.server);if(old&&old.tables>0)old.tables--;}
+  t.server=srvId;t.dirty=false;t.paid=false;t.fresh=marchingAnts;t.seatedAt=Date.now();
+  const s=servers.find(s=>s.id===srvId);
+  if(s){
+    s.tables++;lastSatServerId=s.id;
+    const a=servers.filter(s=>s.active),idx=a.findIndex(s=>s.id===srvId);
+    const nextIdx=rotationIndex%Math.max(a.length,1);
+    if(idx===nextIdx)rotationIndex=(rotationIndex+1)%Math.max(a.length,1);
+  }
+  const nextSrv=getNext();selectedServer=nextSrv?nextSrv.id:null;
+  save();renderFloorPicker();renderServerList();drawTables();startAnim();
+  if(s&&s.smsEnabled&&s.phone)sendSmsNotification(s.phone,s.name,t.label);
+}
+async function sendOptinRequest(phone){
+  if(!sb)return;
+  try{await sb.functions.invoke('send-sms',{body:{action:'optin-request',phone}});}
+  catch(e){console.warn('Opt-in request failed',e);}
+}
+async function sendSmsNotification(phone,serverName,tableLabel){
+  if(!sb)return;
+  try{await sb.functions.invoke('send-sms',{body:{action:'table-alert',phone,tableLabel}});}
+  catch(e){console.warn('SMS notification failed',e);}
+}
+function openTableCtx(t){
+  const srv=t.server?servers.find(s=>s.id===t.server):null;
+  document.getElementById('table-ctx-content').innerHTML=`
+    <div class="ctx-header">${t.label}${srv?' · '+srv.name:t.dirty?' · needs clean':t.paid?' · paid / camping':''}</div>
+    ${srv?`<div class="ctx-item" onclick="ctxSwitch(${t.id})"><i class="ti ti-refresh"></i> Switch server</div>`:''}
+    <div class="ctx-item warn" onclick="ctxDirty(${t.id})"><i class="ti ti-brush"></i> Mark dirty</div>
+    ${srv?`<div class="ctx-item warn" onclick="ctxPaid(${t.id})"><i class="ti ti-circle-check"></i> Paid</div>`:''}
+    ${t.server||t.dirty||t.paid?`<div class="ctx-sep"></div><div class="ctx-item danger" onclick="ctxRemove(${t.id})"><i class="ti ti-user-minus"></i> Remove assignment</div>`:''}
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="closeModal('table-ctx-modal')"><i class="ti ti-x"></i> Cancel</div>`;
+  document.getElementById('table-ctx-modal').classList.add('open');
+}
+function ctxSwitch(tid){closeModal('table-ctx-modal');if(!selectedServer)return;const t=tables.find(t=>t.id===tid);if(t)assignServer(t,selectedServer);}
+function ctxDirty(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=true;t.paid=false;t.fresh=false;t.seatedAt=null;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
+function ctxPaid(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=true;t.fresh=false;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
+function ctxRemove(tid){const t=tables.find(t=>t.id===tid);if(t){if(t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}t.server=null;t.dirty=false;t.paid=false;t.seatedAt=null;}closeModal('table-ctx-modal');save();renderFloorPicker();renderServerList();drawTables();}
+
+(async()=>{
+  await load();
+  try{if(localStorage.getItem('cv_floor_sec_mode')==='1'){floorSectionMode=true;applyFloorSectionModeUI();}}catch(e){}
+  try{if(localStorage.getItem('cv_marching_ants')==='0'){marchingAnts=false;document.getElementById('anim-btn').classList.remove('on');}}catch(e){}
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollOnce();});
+  setInterval(()=>{if(!_animFrame&&tables.some(t=>t.seatedAt))drawTables();},30000);
+  const n=getNext();if(n)selectedServer=n.id;
+  renderFloorPicker();renderServerList();drawTables();
+})();
+</script>
+</body>
+</html>
