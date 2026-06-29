@@ -291,8 +291,9 @@ const ctx=canvas.getContext('2d');
 const CW=700,CH=700,BAR_Y=500;
 const DRAW_BTN_X=390,DRAW_BTN_Y=650,DRAW_BTN_R=18;
 
-let _saveTimer=null,_channel=null;
+let _saveTimer=null,_channel=null,_pushing=false,_lastSaveTime=0;
 function save(){
+  _lastSaveTime=Date.now();
   try{localStorage.setItem('cv_servers',JSON.stringify(servers));localStorage.setItem('cv_tables',JSON.stringify(tables));localStorage.setItem('cv_rotation',rotationIndex);localStorage.setItem('cv_last_srv',lastSatServerId||'');localStorage.setItem('cv_sections',JSON.stringify(sections));}catch(e){}
   broadcastState();
   clearTimeout(_saveTimer);_saveTimer=setTimeout(()=>{_saveTimer=null;pushToCloud();},400);
@@ -303,6 +304,7 @@ function broadcastState(){
 }
 async function pushToCloud(){
   if(!sb)return;
+  _pushing=true;
   try{
     const{error}=await sb.from('floor_state').upsert({id:1,tables,servers,rotation_index:rotationIndex,last_sat_server_id:lastSatServerId||null,sections});
     if(error){
@@ -310,6 +312,7 @@ async function pushToCloud(){
       if(e2)console.warn('Supabase sync error',e2);
     }
   }catch(e){console.warn('Supabase sync error',e);}
+  finally{_pushing=false;}
 }
 async function load(){
   // Phase 1: show localStorage data immediately
@@ -365,7 +368,7 @@ function setupRealtime(){
   }).subscribe(status=>console.log('Realtime:',status));
 }
 async function pollOnce(){
-  if(!sb||_saveTimer||dragging||resizing||panning)return;
+  if(!sb||_saveTimer||_pushing||(Date.now()-_lastSaveTime<5000)||dragging||resizing||panning)return;
   try{
     const{data,error}=await sb.from('floor_state').select('*').eq('id',1).maybeSingle();
     if(data&&!error)applyRemoteState(data);
@@ -380,7 +383,12 @@ function switchTab(t){
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['floor','servers','sections'][i]===t));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+t).classList.add('active');
-  if(t==='floor'){renderFloorPicker();drawTables();}
+  if(t==='floor'){
+    renderFloorPicker();drawTables();
+    if(tables.some(t=>t.fresh))startAnim();
+  } else {
+    if(_animFrame){cancelAnimationFrame(_animFrame);_animFrame=null;}
+  }
   if(t==='servers')renderServerList();
   if(t==='sections'){renderSectionList();drawSectionCanvas();}
 }
@@ -557,7 +565,6 @@ function handleSectionTap(cx,cy){
     if(!sec){notice.textContent='Table '+hit.label+' isn\'t in any section — use Define mode to assign it.';return;}
     if(!sec.serverId){notice.textContent='Section "'+sec.name+'" has no server — pick one from the dropdown above.';return;}
     if(!hit.server&&!hit.paid){assignServer(hit,sec.serverId);}
-    else if(marchingAnts&&hit.fresh){hit.fresh=false;save();drawSectionCanvas();drawTables();}
     else{openTableCtx(hit);}
     notice.textContent='Select a section, then tap a table to auto-assign its server.';
     drawSectionCanvas();
@@ -771,7 +778,7 @@ function drawTables(){
     ctx.save();
     if(stroke.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';}
     else{ctx.strokeStyle=stroke.color;}
-    ctx.lineWidth=stroke.width/vpZ;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.lineWidth=stroke.width;ctx.lineCap='round';ctx.lineJoin='round';
     ctx.beginPath();ctx.moveTo(stroke.points[0].x,stroke.points[0].y);
     for(let i=1;i<stroke.points.length;i++)ctx.lineTo(stroke.points[i].x,stroke.points[i].y);
     ctx.stroke();ctx.restore();
