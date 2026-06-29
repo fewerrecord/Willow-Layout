@@ -164,20 +164,29 @@
           <canvas id="tableCanvas" width="700" height="700"></canvas>
         </div>
         <div id="draw-tools-panel">
-          <div class="dt-btn active" id="dt-pen" onclick="setDrawTool('pen')" title="Pen"><i class="ti ti-pencil"></i></div>
-          <div class="dt-btn" id="dt-eraser" onclick="setDrawTool('eraser')" title="Eraser"><i class="ti ti-eraser"></i></div>
+          <div class="dt-btn" id="dt-pen" onclick="clickDrawBtn('pen')" title="Pen"><i class="ti ti-pencil"></i></div>
+          <div class="dt-btn" id="dt-eraser" onclick="clickDrawBtn('eraser')" title="Eraser"><i class="ti ti-eraser"></i></div>
+          <div class="dt-btn" id="dt-crop" onclick="clickDrawBtn('crop')" title="Select"><i class="ti ti-crop"></i></div>
           <div style="width:100%;height:0.5px;background:#333"></div>
-          <div class="dt-swatch picked" style="background:#ff6b6b" onclick="setDrawColor('#ff6b6b',this)" title="Red"></div>
-          <div class="dt-swatch" style="background:#5dca8a" onclick="setDrawColor('#5dca8a',this)" title="Green"></div>
-          <div class="dt-swatch" style="background:#378ADD" onclick="setDrawColor('#378ADD',this)" title="Blue"></div>
-          <div class="dt-swatch" style="background:#f0c060" onclick="setDrawColor('#f0c060',this)" title="Yellow"></div>
-          <div class="dt-swatch" style="background:#f0f0f0" onclick="setDrawColor('#f0f0f0',this)" title="White"></div>
+          <div style="display:flex;flex-wrap:wrap;width:76px;gap:5px;justify-content:center">
+            <div class="dt-swatch picked" style="background:#ff6b6b" onclick="setDrawColor('#ff6b6b',this)" title="Red"></div>
+            <div class="dt-swatch" style="background:#5dca8a" onclick="setDrawColor('#5dca8a',this)" title="Green"></div>
+            <div class="dt-swatch" style="background:#378ADD" onclick="setDrawColor('#378ADD',this)" title="Blue"></div>
+            <div class="dt-swatch" style="background:#f0c060" onclick="setDrawColor('#f0c060',this)" title="Yellow"></div>
+            <div class="dt-swatch" style="background:#ff79c6" onclick="setDrawColor('#ff79c6',this)" title="Pink"></div>
+            <div class="dt-swatch" style="background:#bd93f9" onclick="setDrawColor('#bd93f9',this)" title="Purple"></div>
+            <div class="dt-swatch" style="background:#fb923c" onclick="setDrawColor('#fb923c',this)" title="Orange"></div>
+            <div class="dt-swatch" style="background:#f0f0f0" onclick="setDrawColor('#f0f0f0',this)" title="White"></div>
+            <div class="dt-swatch" style="background:#000;border-color:#555" onclick="setDrawColor('#000',this)" title="Black"></div>
+          </div>
           <div style="width:100%;height:0.5px;background:#333"></div>
-          <div class="dt-wbtn picked" id="dw-1" onclick="setDrawWidth(2,this)" title="Thin"><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-          <div class="dt-wbtn" id="dw-2" onclick="setDrawWidth(4,this)" title="Medium"><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#ccc" stroke-width="3" stroke-linecap="round"/></svg></div>
-          <div class="dt-wbtn" id="dw-3" onclick="setDrawWidth(7,this)" title="Thick"><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#ccc" stroke-width="5" stroke-linecap="round"/></svg></div>
+          <input type="range" id="draw-width-slider" min="2" max="21" value="2" style="width:70px;cursor:pointer;accent-color:#5dca8a" oninput="setDrawWidthSlider(this.value)">
           <div style="width:100%;height:0.5px;background:#333"></div>
-          <div class="dt-btn" onclick="clearDrawings()" title="Clear all" style="color:#ff6b6b"><i class="ti ti-trash"></i></div>
+          <div style="width:100%;height:0.5px;background:#333"></div>
+          <div id="draw-cut-btn" class="dt-btn" onclick="cutSelected()" title="Cut" style="opacity:0.25;pointer-events:none"><i class="ti ti-cut"></i></div>
+          <div id="draw-paste-btn" class="dt-btn" onclick="startPasteMode()" title="Paste" style="opacity:0.25;pointer-events:none"><i class="ti ti-clipboard"></i></div>
+          <div class="dt-btn" onclick="clearDrawings()" title="Clear drawings" style="color:#ff6b6b"><i class="ti ti-trash"></i></div>
+          <div class="dt-btn" onclick="clearPasted()" title="Clear pasted" style="color:#f0a060"><i class="ti ti-clipboard-x"></i></div>
         </div>
         <p class="notice" id="floor-notice">Pick a server above, then tap a free table to assign. Tap an occupied or dirty table for options.</p>
       </div>
@@ -286,10 +295,15 @@ let floorSectionMode=false;
 let marchingAnts=true;
 let _dashOffset=0,_animFrame=null;
 let drawMode=false,drawStrokes=[],currentDrawStroke=null,drawColor='#ff6b6b',drawWidth=2,drawTool='pen';
+let cropSelecting=false,cropX0=0,cropY0=0,cropX1=0,cropY1=0;
+let selectedStrokes=[],drawClipboard=null,pasteMode=false;
 const canvas=document.getElementById('tableCanvas');
 const ctx=canvas.getContext('2d');
 const CW=700,CH=700,BAR_Y=500;
 const DRAW_BTN_X=390,DRAW_BTN_Y=650,DRAW_BTN_R=18;
+const drawCanvas=document.createElement('canvas');
+drawCanvas.width=CW;drawCanvas.height=CH;
+const drawCtx=drawCanvas.getContext('2d');
 
 let _saveTimer=null,_channel=null,_pushing=false,_lastSaveTime=0;
 function save(){
@@ -623,28 +637,65 @@ function addTable(shape){tables.push({id:Date.now(),shape,x:100,y:100,label:`T${
 function deleteSelected(){if(selectedTable==null)return;const t=tables.find(t=>t.id===selectedTable);if(t&&t.server){const s=servers.find(s=>s.id===t.server);if(s&&s.tables>0)s.tables--;}tables=tables.filter(t=>t.id!==selectedTable);selectedTable=null;updateEditButtons();save();renderFloorPicker();renderServerList();drawTables();}
 function resetLayout(){tables.forEach(t=>{t.server=null;t.dirty=false;t.paid=false;t.fresh=false;t.seatedAt=null;});servers.forEach(s=>s.tables=0);selectedTable=null;selectedServer=null;updateEditButtons();save();renderFloorPicker();renderServerList();drawTables();}
 
+function updateDrawUI(){
+  document.getElementById('dt-pen').classList.toggle('active',drawMode&&drawTool==='pen');
+  document.getElementById('dt-eraser').classList.toggle('active',drawMode&&drawTool==='eraser');
+  document.getElementById('dt-crop').classList.toggle('active',drawMode&&drawTool==='crop');
+}
+function updateCropUI(){
+  const cut=document.getElementById('draw-cut-btn'),paste=document.getElementById('draw-paste-btn');
+  if(cut){cut.style.opacity=selectedStrokes.length?'1':'0.25';cut.style.pointerEvents=selectedStrokes.length?'auto':'none';}
+  if(paste){
+    const active=pasteMode&&drawClipboard;
+    paste.style.opacity=drawClipboard?'1':'0.25';
+    paste.style.pointerEvents=drawClipboard?'auto':'none';
+    paste.style.color=active?'#5dca8a':'';
+  }
+}
+function clickDrawBtn(tool){
+  if(tool!=='crop'){selectedStrokes=[];cropSelecting=false;updateCropUI();}
+  if(tool!=='crop')pasteMode=false;
+  if(!drawMode){drawMode=true;drawTool=tool;}
+  else if(drawTool===tool){drawMode=false;}
+  else{drawTool=tool;}
+  updateDrawUI();drawTables();
+}
 function toggleDrawMode(){
-  drawMode=!drawMode;
   const panel=document.getElementById('draw-tools-panel');
-  panel.style.display=drawMode?'flex':'none';
-  drawTables();
+  const opening=panel.style.display!=='flex';
+  panel.style.display=opening?'flex':'none';
+  drawMode=opening;
+  if(opening){drawTool='pen';}
+  else{selectedStrokes=[];cropSelecting=false;pasteMode=false;updateCropUI();}
+  updateDrawUI();drawTables();
+}
+function cutSelected(){
+  if(!selectedStrokes.length)return;
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  selectedStrokes.forEach(s=>s.points.forEach(p=>{minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}));
+  drawClipboard={strokes:selectedStrokes.map(s=>({...s,points:s.points.map(p=>({...p}))})),cx:(minX+maxX)/2,cy:(minY+maxY)/2};
+  drawStrokes=drawStrokes.filter(s=>!selectedStrokes.includes(s));
+  selectedStrokes=[];updateCropUI();drawTables();
+}
+function startPasteMode(){
+  if(!drawClipboard)return;
+  pasteMode=!pasteMode;
+  updateCropUI();drawTables();
+}
+function placeClipboard(wx,wy){
+  if(!drawClipboard)return;
+  const dx=wx-drawClipboard.cx,dy=wy-drawClipboard.cy;
+  drawStrokes.push(...drawClipboard.strokes.map(s=>({...s,pasted:true,points:s.points.map(p=>({x:p.x+dx,y:p.y+dy}))})));
+  pasteMode=false;updateCropUI();drawTables();
 }
 function setDrawColor(c,el){
   drawColor=c;
   document.querySelectorAll('.dt-swatch').forEach(s=>s.classList.remove('picked'));
   el.classList.add('picked');
 }
-function setDrawWidth(w,el){
-  drawWidth=w;
-  document.querySelectorAll('.dt-wbtn').forEach(b=>b.classList.remove('picked'));
-  el.classList.add('picked');
-}
-function setDrawTool(tool){
-  drawTool=tool;
-  document.querySelectorAll('.dt-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('dt-'+tool).classList.add('active');
-}
-function clearDrawings(){drawStrokes=[];drawTables();}
+function setDrawWidthSlider(val){drawWidth=parseInt(val);}
+function clearDrawings(){drawStrokes=drawStrokes.filter(s=>s.pasted);selectedStrokes=[];drawClipboard=null;pasteMode=false;cropSelecting=false;updateCropUI();drawTables();}
+function clearPasted(){drawStrokes=drawStrokes.filter(s=>!s.pasted);selectedStrokes=selectedStrokes.filter(s=>drawStrokes.includes(s));drawClipboard=null;pasteMode=false;updateCropUI();drawTables();}
 
 function hexLuma(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return 0.299*r+0.587*g+0.114*b;}
 
@@ -772,19 +823,45 @@ function drawTables(){
   }
   ctx.restore();
 
-  // Render strokes
-  drawStrokes.forEach(stroke=>{
-    if(stroke.points.length<2)return;
-    ctx.save();
-    if(stroke.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.strokeStyle='rgba(0,0,0,1)';}
-    else{ctx.strokeStyle=stroke.color;}
-    ctx.lineWidth=stroke.width;ctx.lineCap='round';ctx.lineJoin='round';
-    ctx.beginPath();ctx.moveTo(stroke.points[0].x,stroke.points[0].y);
-    for(let i=1;i<stroke.points.length;i++)ctx.lineTo(stroke.points[i].x,stroke.points[i].y);
-    ctx.stroke();ctx.restore();
-  });
-
   ctx.restore();
+
+  // Render draw layer on isolated canvas then composite so eraser only affects strokes
+  drawCtx.clearRect(0,0,CW,CH);
+  if(drawStrokes.length){
+    drawCtx.save();
+    drawCtx.translate(vpX,vpY);
+    drawCtx.scale(vpZ,vpZ);
+    drawStrokes.forEach(stroke=>{
+      if(stroke.points.length<2)return;
+      drawCtx.save();
+      if(stroke.tool==='eraser'){drawCtx.globalCompositeOperation='destination-out';drawCtx.strokeStyle='rgba(0,0,0,1)';}
+      else{drawCtx.globalCompositeOperation='source-over';drawCtx.strokeStyle=stroke.color;}
+      drawCtx.lineWidth=stroke.width;drawCtx.lineCap='round';drawCtx.lineJoin='round';
+      drawCtx.beginPath();drawCtx.moveTo(stroke.points[0].x,stroke.points[0].y);
+      for(let i=1;i<stroke.points.length;i++)drawCtx.lineTo(stroke.points[i].x,stroke.points[i].y);
+      drawCtx.stroke();drawCtx.restore();
+    });
+    drawCtx.restore();
+    ctx.drawImage(drawCanvas,0,0);
+  }
+  // Selected strokes bounding box
+  if(selectedStrokes.length){
+    ctx.save();ctx.translate(vpX,vpY);ctx.scale(vpZ,vpZ);
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    selectedStrokes.forEach(s=>s.points.forEach(p=>{minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}));
+    const pad=10/vpZ;
+    ctx.strokeStyle='rgba(255,255,255,0.8)';ctx.lineWidth=1.5/vpZ;ctx.setLineDash([5/vpZ,3/vpZ]);
+    ctx.strokeRect(minX-pad,minY-pad,maxX-minX+pad*2,maxY-minY+pad*2);
+    ctx.setLineDash([]);ctx.restore();
+  }
+  // Crop drag rect
+  if(drawMode&&drawTool==='crop'&&cropSelecting){
+    ctx.save();ctx.translate(vpX,vpY);ctx.scale(vpZ,vpZ);
+    const rx=Math.min(cropX0,cropX1),ry=Math.min(cropY0,cropY1),rw=Math.abs(cropX1-cropX0),rh=Math.abs(cropY1-cropY0);
+    ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(rx,ry,rw,rh);
+    ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=1/vpZ;ctx.setLineDash([4/vpZ,3/vpZ]);
+    ctx.strokeRect(rx,ry,rw,rh);ctx.setLineDash([]);ctx.restore();
+  }
 }
 
 const sCanvas=document.getElementById('sectionCanvas');
@@ -885,7 +962,9 @@ canvas.addEventListener('wheel',e=>{
 canvas.addEventListener('mousedown',e=>{
   const{x,y}=screenToCanvas(e.clientX,e.clientY);dragMoved=false;
   if(!editMode&&Math.hypot(x-DRAW_BTN_X,y-DRAW_BTN_Y)<DRAW_BTN_R){toggleDrawMode();return;}
-  if(drawMode&&!editMode){currentDrawStroke={color:drawColor,width:drawWidth,tool:drawTool,points:[{x,y}]};drawStrokes.push(currentDrawStroke);return;}
+  if(pasteMode){placeClipboard(x,y);return;}
+  if(drawMode&&drawTool==='crop'&&!editMode){cropSelecting=true;cropX0=x;cropY0=y;cropX1=x;cropY1=y;selectedStrokes=[];updateCropUI();drawTables();return;}
+  if(drawMode&&drawTool!=='crop'&&!editMode){currentDrawStroke={color:drawColor,width:drawWidth,tool:drawTool,points:[{x,y}]};drawStrokes.push(currentDrawStroke);return;}
   const handle=getHandleAt(x,y);
   if(handle){
     const t=tables.find(t=>t.id===selectedTable);
@@ -905,6 +984,7 @@ canvas.addEventListener('mousedown',e=>{
   drawTables();
 });
 canvas.addEventListener('mousemove',e=>{
+  if(drawMode&&drawTool==='crop'&&cropSelecting){const{x,y}=screenToCanvas(e.clientX,e.clientY);cropX1=x;cropY1=y;drawTables();return;}
   if(drawMode&&currentDrawStroke){const{x,y}=screenToCanvas(e.clientX,e.clientY);currentDrawStroke.points.push({x,y});drawTables();return;}
   if(resizing){
     const{x,y}=screenToCanvas(e.clientX,e.clientY);
@@ -927,6 +1007,12 @@ canvas.addEventListener('mousemove',e=>{
   if(t){t.x=x-dragOffX;t.y=y-dragOffY;drawTables();}
 });
 canvas.addEventListener('mouseup',e=>{
+  if(drawMode&&drawTool==='crop'&&cropSelecting){
+    cropSelecting=false;
+    const x0=Math.min(cropX0,cropX1),y0=Math.min(cropY0,cropY1),x1=Math.max(cropX0,cropX1),y1=Math.max(cropY0,cropY1);
+    selectedStrokes=drawStrokes.filter(s=>s.points.some(p=>p.x>=x0&&p.x<=x1&&p.y>=y0&&p.y<=y1));
+    updateCropUI();drawTables();return;
+  }
   if(drawMode){currentDrawStroke=null;return;}
   if(resizing){resizing=false;save();return;}
   if(panning){panning=false;return;}
@@ -1015,7 +1101,9 @@ canvas.addEventListener('touchstart',e=>{
   }
   const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);dragMoved=false;
   if(!editMode&&Math.hypot(x-DRAW_BTN_X,y-DRAW_BTN_Y)<DRAW_BTN_R){toggleDrawMode();return;}
-  if(drawMode&&!editMode){currentDrawStroke={color:drawColor,width:drawWidth,tool:drawTool,points:[{x,y}]};drawStrokes.push(currentDrawStroke);return;}
+  if(pasteMode){placeClipboard(x,y);return;}
+  if(drawMode&&drawTool==='crop'&&!editMode){cropSelecting=true;cropX0=x;cropY0=y;cropX1=x;cropY1=y;selectedStrokes=[];updateCropUI();drawTables();return;}
+  if(drawMode&&drawTool!=='crop'&&!editMode){currentDrawStroke={color:drawColor,width:drawWidth,tool:drawTool,points:[{x,y}]};drawStrokes.push(currentDrawStroke);return;}
   const handle=getHandleAt(x,y);
   if(handle){
     const t=tables.find(t=>t.id===selectedTable);
@@ -1035,6 +1123,7 @@ canvas.addEventListener('touchstart',e=>{
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
   e.preventDefault();
+  if(drawMode&&drawTool==='crop'&&cropSelecting&&e.touches.length===1){const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);cropX1=x;cropY1=y;drawTables();return;}
   if(drawMode&&currentDrawStroke&&e.touches.length===1){const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);currentDrawStroke.points.push({x,y});drawTables();return;}
   if(e.touches.length===2){
     const r=canvas.getBoundingClientRect(),sx=CW/r.width,sy=CH/r.height;
@@ -1070,6 +1159,12 @@ canvas.addEventListener('touchmove',e=>{
 },{passive:false});
 canvas.addEventListener('touchend',e=>{
   if(e.touches.length>0)return;
+  if(drawMode&&drawTool==='crop'&&cropSelecting){
+    cropSelecting=false;
+    const x0=Math.min(cropX0,cropX1),y0=Math.min(cropY0,cropY1),x1=Math.max(cropX0,cropX1),y1=Math.max(cropY0,cropY1);
+    selectedStrokes=drawStrokes.filter(s=>s.points.some(p=>p.x>=x0&&p.x<=x1&&p.y>=y0&&p.y<=y1));
+    updateCropUI();drawTables();return;
+  }
   if(drawMode){currentDrawStroke=null;return;}
   if(resizing){resizing=false;save();return;}
   if(panning){panning=false;return;}
