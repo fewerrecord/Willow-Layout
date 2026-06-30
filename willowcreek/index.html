@@ -300,7 +300,7 @@ let drawMode=false,drawStrokes=[],currentDrawStroke=null,drawColor='#ff6b6b',dra
 let cropSelecting=false,cropX0=0,cropY0=0,cropX1=0,cropY1=0;
 let selectedStrokes=[],drawClipboard=null,pasteMode=false;
 // ANGE
-let angeMode=false,_angeLongPressTimer=null,_angeLongPressed=false,_angeImg=null;
+let angeMode=false,_angeLongPressTimer=null,_angeLongPressed=false,_angeImg=null,_angeLongPressClientX=0,_angeLongPressClientY=0;
 try{const _d=localStorage.getItem('cv_ange_img');if(_d)_angeImg=_d;}catch(e){}
 const canvas=document.getElementById('tableCanvas');
 const ctx=canvas.getContext('2d');
@@ -1137,7 +1137,7 @@ canvas.addEventListener('touchstart',e=>{
   const hit=getTableAt(x,y);
   if(hit){
     selectedTable=hit.id;
-    if(angeMode&&!editMode){_angeLongPressed=false;_angeLongPressTimer=setTimeout(()=>{_angeLongPressed=true;_angeLongPressTimer=null;showAngeImage();},600);} // ANGE
+    if(angeMode&&!editMode){_angeLongPressed=false;_angeLongPressClientX=e.touches[0].clientX;_angeLongPressClientY=e.touches[0].clientY;_angeLongPressTimer=setTimeout(()=>{_angeLongPressed=true;_angeLongPressTimer=null;showAngeImage();},600);} // ANGE
     if(editMode){dragging=true;dragOffX=x-hit.x;dragOffY=y-hit.y;updateEditButtons();}
   } else {
     selectedTable=null;
@@ -1148,7 +1148,7 @@ canvas.addEventListener('touchstart',e=>{
 },{passive:false});
 canvas.addEventListener('touchmove',e=>{
   e.preventDefault();
-  if(_angeLongPressTimer){clearTimeout(_angeLongPressTimer);_angeLongPressTimer=null;} // ANGE
+  if(_angeLongPressTimer&&Math.hypot(e.touches[0].clientX-_angeLongPressClientX,e.touches[0].clientY-_angeLongPressClientY)>10){clearTimeout(_angeLongPressTimer);_angeLongPressTimer=null;} // ANGE
   if(drawMode&&drawTool==='crop'&&cropSelecting&&e.touches.length===1){const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);cropX1=x;cropY1=y;drawTables();return;}
   if(drawMode&&currentDrawStroke&&e.touches.length===1){const{x,y}=screenToCanvas(e.touches[0].clientX,e.touches[0].clientY);currentDrawStroke.points.push({x,y});drawTables();return;}
   if(e.touches.length===2){
