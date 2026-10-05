@@ -147,6 +147,8 @@ main{padding:6px 10px 20px}
 .g-sh .g-name b{display:block;font-family:var(--cond);font-size:18px}
 .g-name small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
 div.g-name{opacity:.7}
+.g-pos{width:44px;height:42px;flex:none;text-align:center;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-weight:600;font-size:16px;padding:0}
+.g-it.g-moved .g-name{outline:2px solid var(--focus);outline-offset:-2px}
 .g-mv{width:42px;height:42px;flex:none;border:1.5px solid var(--line);background:var(--paper);border-radius:8px;font-size:18px}
 .g-mv[disabled]{opacity:.3;cursor:default}
 .g-rest{padding:9px 12px;font-size:14px;flex:none}
@@ -595,7 +597,7 @@ function openGuide(y){
     const S=SECS[k], l=secItems(k);
     o+=`<div class="g-sec" style="--c:${S.c}"><div class="g-sh"><button type="button" class="g-name" data-g="editsec" data-k="${k}"><b>${esc(S.name)}</b><small>${l.length} item${l.length===1?'':'s'} · edit section</small></button>${mvBtns('sec',k,si===0,si===keys.length-1)}</div>`;
     if(!l.length)o+=`<div class="note">No items yet.</div>`;
-    l.forEach((i,ii)=>{o+=`<div class="g-it"><button type="button" class="g-name" data-g="edititem" data-id="${esc(i.id)}">${esc(i.name)}<small>${esc(i.pack)}${i.pack?' · ':''}${fmt2(i.price)} · par ${parOf(i)}<br>${lastTxt(lastFor(i.id,lo))}</small></button>${mvBtns('it',i.id,ii===0,ii===l.length-1)}</div>`;});
+    l.forEach((i,ii)=>{o+=`<div class="g-it"><input class="g-pos" inputmode="numeric" enterkeyhint="done" value="${ii+1}" data-id="${esc(i.id)}" aria-label="Position of ${esc(i.name)} in ${esc(S.name)} (1 to ${l.length})"><button type="button" class="g-name" data-g="edititem" data-id="${esc(i.id)}">${esc(i.name)}<small>${esc(i.pack)}${i.pack?' · ':''}${fmt2(i.price)} · par ${parOf(i)}<br>${lastTxt(lastFor(i.id,lo))}</small></button>${mvBtns('it',i.id,ii===0,ii===l.length-1)}</div>`;});
     o+='</div>';
   });
   const gone=BASE.filter(b=>st.edits[b.id]&&st.edits[b.id].hidden);
@@ -604,7 +606,20 @@ function openGuide(y){
     gone.forEach(b=>{o+=`<div class="g-it"><div class="g-name">${esc(st.edits[b.id].name||b.name)}<small>${esc(b.pack)}</small></div><button type="button" class="secondary g-rest" data-g="restore" data-id="${esc(b.id)}">Restore</button></div>`;});
   }
   o+=`<div class="actions"><button type="button" class="primary" data-g="done">Done</button></div>`;
-  sh.innerHTML=o; sh.hidden=false; sh.scrollTop=y||0; sh.onchange=null;
+  sh.innerHTML=o; sh.hidden=false; sh.scrollTop=y||0;
+  // Typing a position moves the item there within its section.
+  sh.onchange=ev=>{
+    const inp=ev.target.closest('.g-pos'); if(!inp)return;
+    const i=byId[inp.dataset.id]; if(!i)return;
+    const l=secItems(i.sec), from=l.indexOf(i), n=parseInt(inp.value,10);
+    if(!(n>=1)){inp.value=from+1; return;}
+    const to=Math.min(n,l.length)-1; if(to===from){inp.value=from+1; return;}
+    l.splice(from,1); l.splice(to,0,i);
+    st.order=Object.keys(SECS).flatMap(k=>k===i.sec?l:secItems(k)).map(x=>x.id);
+    guideY=sh.scrollTop; guideChanged(); openGuide(guideY);
+    const back=sh.querySelector(`.g-pos[data-id="${CSS.escape(i.id)}"]`); if(back){ const row=back.closest('.g-it'); row.classList.add('g-moved'); row.scrollIntoView({block:'center'}); }
+  };
+  sh.onkeydown=ev=>{ if(ev.key==='Enter'&&ev.target.classList.contains('g-pos'))ev.target.blur(); };
   sh.onclick=ev=>{
     const b=ev.target.closest('button[data-g]'); if(!b||b.disabled)return;
     const g=b.dataset.g;
