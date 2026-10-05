@@ -12,7 +12,7 @@
 <style>
 :root{
   --ink:#17252d; --paper:#eef2f3; --card:#ffffff; --line:#d3dde1; --muted:#566b75;
-  --walk:#1f6f8b; --frz:#4a58b0; --dry:#9a6a1c; --sup:#5f717a; --unk:#8a4b7a;
+  --walk:#1f6f8b; --frz:#4a58b0; --dry:#9a6a1c; --sup:#5f717a; --unk:#8a4b7a; --grn:#3d7a3a; --rose:#b0414f;
   --warn:#a93d0c; --warnbg:#fdeee4; --hit:#17252d; --hittxt:#ffffff; --focus:#1f6f8b;
   --sans:"Barlow",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
   --cond:"Barlow Semi Condensed","Barlow",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
@@ -23,13 +23,13 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --ink:#e6eef1; --paper:#0f171b; --card:#172228; --line:#2a3a42; --muted:#93a8b1;
-    --walk:#5bb6d4; --frz:#98a5f2; --dry:#dca64f; --sup:#9aabb3; --unk:#d596c4;
+    --walk:#5bb6d4; --frz:#98a5f2; --dry:#dca64f; --sup:#9aabb3; --unk:#d596c4; --grn:#7cc477; --rose:#ef8a96;
     --warn:#ff9f6d; --warnbg:#2e1c11; --hit:#e6eef1; --hittxt:#0f171b; --focus:#5bb6d4;
   }
 }
 :root[data-theme="dark"]{
   --ink:#e6eef1; --paper:#0f171b; --card:#172228; --line:#2a3a42; --muted:#93a8b1;
-  --walk:#5bb6d4; --frz:#98a5f2; --dry:#dca64f; --sup:#9aabb3; --unk:#d596c4;
+  --walk:#5bb6d4; --frz:#98a5f2; --dry:#dca64f; --sup:#9aabb3; --unk:#d596c4; --grn:#7cc477; --rose:#ef8a96;
   --warn:#ff9f6d; --warnbg:#2e1c11; --hit:#e6eef1; --hittxt:#0f171b; --focus:#5bb6d4;
 }
 html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px);height:100%}
@@ -137,9 +137,26 @@ main{padding:6px 10px 20px}
 .aform{display:flex;flex-direction:column;gap:12px;margin-top:14px}
 .aform label{display:flex;flex-direction:column;gap:5px;font-size:13.5px;color:var(--muted)}
 .aform input,.aform select{padding:11px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:16px;min-width:0}
-.arow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.arow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.aform input:not([type=checkbox]):not([type=radio]),.aform select{width:100%}
 .actions{display:flex;gap:10px;margin-top:20px}
 .actions button{flex:1}
+.g-sec{margin-top:16px;border-left:5px solid var(--c);padding-left:8px}
+.g-sh,.g-it{display:flex;align-items:center;gap:6px;margin-top:6px}
+.g-name{flex:1;min-width:0;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:15px}
+.g-sh .g-name b{display:block;font-family:var(--cond);font-size:18px}
+.g-name small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+div.g-name{opacity:.7}
+.g-mv{width:42px;height:42px;flex:none;border:1.5px solid var(--line);background:var(--paper);border-radius:8px;font-size:18px}
+.g-mv[disabled]{opacity:.3;cursor:default}
+.g-rest{padding:9px 12px;font-size:14px;flex:none}
+.danger{color:var(--warn);border-color:var(--warn)}
+.danger[disabled],.secondary[disabled]{opacity:.4;cursor:default}
+.aform label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:15px}
+.aform input[type=checkbox],.aform input[type=radio]{width:20px;height:20px;padding:0;margin:0}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.aform label.sw{flex-direction:row;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);font-size:14px;background:var(--card)}
+.sw span{width:16px;height:16px;border-radius:50%;display:inline-block}
 .sync{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .sync .linkbtn{padding:8px 0 8px 16px;margin:-8px 0;font-size:12px}
 .offer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -185,7 +202,7 @@ body.locked{padding-bottom:0}
   <div class="prog">
     <div class="bar"><i id="barfill"></i></div>
     <span id="progtxt"></span>
-    <button type="button" class="linkbtn" id="addItem">Add item</button>
+    <button type="button" class="linkbtn" id="editGuide">Edit guide</button>
     <button type="button" class="linkbtn" id="hist">History</button>
     <button type="button" class="linkbtn" id="clear">Clear counts</button>
   </div>
@@ -209,24 +226,37 @@ const SECS = {
   sup:{name:'Supplies',c:'var(--sup)',note:'Slow movers. Count these once a week, not every order.'},
   unk:{name:'Unnamed items',c:'var(--unk)',note:'Bought in August but not in the guide export. Check what these are.'}
 };
+// Built-in guide and sections as shipped; st.edits / st.custom / st.secs / st.order are layered on top by buildGuide().
+const BASE=ITEMS.map(i=>Object.assign({},i));
+const DEFAULT_SECS=Object.keys(SECS).map(k=>Object.assign({k},SECS[k]));
+const COLORS=[['var(--walk)','Teal'],['var(--frz)','Indigo'],['var(--dry)','Amber'],['var(--grn)','Green'],['var(--rose)','Red'],['var(--unk)','Plum'],['var(--sup)','Gray']];
 const KEY='wc-order-count-v1';
-let st={day:null,par:{},cnt:{},trig:{},upc:{},cm:{},skip:{},custom:[],v:0,closed:{}};
+let st={day:null,par:{},cnt:{},trig:{},upc:{},cm:{},skip:{},custom:[],edits:{},order:null,secs:null,v:0,closed:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&typeof s==='object') st=Object.assign(st,s);}catch(e){}
 if(!st.trig)st.trig={};
+if(!st.edits||typeof st.edits!=='object')st.edits={};
 if(!st.day){const d=new Date().getDay(); st.day=(d===6||d===0||d===1||d===2)?'tue':'sat';}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
 function save(){st.lrev=Date.now(); saveLocal(); scheduleSync();}
 const byId={}; ITEMS.forEach(i=>byId[i.id]=i);
 if(!Array.isArray(st.custom))st.custom=[];
-function syncCustom(){
-  for(let k=ITEMS.length-1;k>=0;k--) if(ITEMS[k].custom){delete byId[ITEMS[k].id]; ITEMS.splice(k,1);}
+function buildGuide(){
+  for(const k in SECS)delete SECS[k];
+  (Array.isArray(st.secs)&&st.secs.length?st.secs:DEFAULT_SECS).forEach(s=>{SECS[s.k]={name:s.name,c:s.c||'var(--sup)',note:s.note||''};});
+  const first=Object.keys(SECS)[0];
+  ITEMS.length=0; for(const k in byId)delete byId[k];
+  const add=it=>{ if(!SECS[it.sec])it.sec=first; ITEMS.push(it); byId[it.id]=it; };
+  BASE.forEach(b=>{ const e=st.edits[b.id]||{}; if(e.hidden)return; add(Object.assign({},b,e,{id:b.id})); });
   st.custom.forEach(c=>{
     const pr=+c.price||0;
-    const it={id:c.id,name:c.name,pack:c.pack||'',sec:c.sec,price:pr,times:0,avg:0,par:+c.par>0?+c.par:1,upc:1,unit:'units',big:pr>=100,tag:'Added by you',custom:true};
-    ITEMS.push(it); byId[it.id]=it;
+    add({id:c.id,name:c.name,pack:c.pack||'',sec:c.sec,price:pr,times:0,avg:0,par:+c.par>0?+c.par:1,upc:+c.upc>0?+c.upc:1,unit:c.unit||'units',big:c.big!==undefined?!!c.big:pr>=100,tag:c.tag!==undefined?c.tag:'Added by you',num:c.num,custom:true});
   });
+  const rank={}; (Array.isArray(st.order)?st.order:[]).forEach((id,k)=>rank[id]=k);
+  const pos={}; ITEMS.forEach((it,k)=>pos[it.id]=k);
+  const r=it=>rank[it.id]!==undefined?rank[it.id]:1e6+pos[it.id];
+  ITEMS.sort((a,b)=>r(a)-r(b));
 }
-syncCustom();
+buildGuide();
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
@@ -315,7 +345,7 @@ list.addEventListener('click',e=>{
     const i=byId[row.dataset.id]; if(!i)return;
     if(!b._armed){b._armed=true; b.textContent='tap again to remove'; setTimeout(()=>{b._armed=false;b.textContent='remove from guide';},3000); return;}
     st.custom=st.custom.filter(c=>c.id!==i.id); delete st.cnt[i.id]; delete st.par[i.id]; delete st.skip[i.id]; delete st.trig[i.id];
-    save(); syncCustom(); render(); return;
+    save(); buildGuide(); render(); return;
   }
   if(act==='skip'){ const i=byId[row.dataset.id]; if(st.skip[i.id])delete st.skip[i.id]; else st.skip[i.id]=true; save(); updRow(i); updTotals(); return; }
   if(act==='mode'){
@@ -344,7 +374,8 @@ $('#clear').addEventListener('click',()=>{
   clearTimeout(clrT); clr=false; b.textContent='Clear counts'; snapshot(); st.cnt={}; st.skip={}; save(); render();
 });
 
-function idTxt(id){return /^c-/.test(String(id))?'':' #'+id;}
+function numOf(id){const i=byId[id]; if(i&&i.num!==undefined&&i.num!==null)return String(i.num); return /^c-/.test(String(id))?'':String(id);}
+function idTxt(id){const n=numOf(id); return n?' #'+n:'';}
 function sheetText(L,tot){
   const day=st.day==='tue'?'Tuesday':'Saturday';
   let t=`${day} order, about ${fmt(tot)} before tax\n`;
@@ -356,7 +387,7 @@ function sheetText(L,tot){
   return t;
 }
 function openSheet(){
-  histOpen=false;
+  histOpen=false; guideView=null;
   snapshot();
   const L=orderLines(), tot=L.reduce((a,x)=>a+x.q*x.i.price,0), big=L.filter(x=>x.i.big);
   const day=st.day==='tue'?'Tuesday':'Saturday';
@@ -388,9 +419,9 @@ function loadH(){try{const h=JSON.parse(localStorage.getItem(HKEY)||'[]'); retur
 function saveH(h){try{localStorage.setItem(HKEY,JSON.stringify(h.slice(0,100)));}catch(e){}}
 function snapshot(){
   const L=orderLines(); if(!L.length)return;
-  const lines=L.map(x=>({id:x.i.id,name:x.i.name,pack:x.i.pack,q:x.q,price:x.i.price,c:(cntCases(x.i)===null?null:+cntCases(x.i).toFixed(2))}));
+  const lines=L.map(x=>({id:x.i.id,name:x.i.name,pack:x.i.pack,sec:x.i.sec,q:x.q,price:x.i.price,c:(cntCases(x.i)===null?null:+cntCases(x.i).toFixed(2))}));
   const total=L.reduce((a,x)=>a+x.q*x.i.price,0);
-  const all=ITEMS.filter(i=>cntOf(i)!==null).map(i=>({id:i.id,name:i.name,c:+cntCases(i).toFixed(2),par:parOf(i),q:ordOf(i),skip:!!st.skip[i.id]}));
+  const all=ITEMS.filter(i=>cntOf(i)!==null).map(i=>({id:i.id,name:i.name,sec:i.sec,c:+cntCases(i).toFixed(2),par:parOf(i),trig:trigOf(i),q:ordOf(i),skip:!!st.skip[i.id]}));
   const sig=lines.map(l=>l.id+':'+l.q).join('|')+'#'+all.map(a=>a.id+':'+a.c+(a.skip?'s':'')).join('|');
   const h=loadH(), now=Date.now();
   const entry={id:String(now),ts:now,day:st.day,sig,total,lines,all};
@@ -419,7 +450,7 @@ function histText(e){
 }
 var histOpenId=null;
 function openHistory(openId){
-  histOpen=true;
+  histOpen=true; guideView=null;
   if(typeof openId==='string')histOpenId=openId;
   const h=loadH(), sh=$('#sheet');
   let o=`<h2>Past orders</h2><div class="sub">Saved automatically when you review an order or clear counts.</div>`;
@@ -448,11 +479,14 @@ function openHistory(openId){
     o+=`<details class="addit"><summary>＋ Add an item we ordered</summary><div class="addform"><input class="an" placeholder="Item name, e.g. dissolvable labels" maxlength="80" aria-label="Item name"><input class="aq" inputmode="decimal" placeholder="cases" value="1" aria-label="Cases ordered"><input class="ap" inputmode="decimal" placeholder="$ per case" aria-label="Price per case"><button type="button" class="secondary" data-hact="add" data-id="${eid}">Add</button></div></details>`;
     o+=`<div class="actions"><button type="button" class="secondary" data-hact="copy" data-id="${eid}">Copy list</button><button type="button" class="secondary" data-hact="del" data-id="${eid}">Delete</button></div></div></details>`;
   });
-  o+=`<div class="sh-sec" style="--c:var(--muted)">Backup</div><div class="sub">Counts, pars, added items and every saved order, in one file.</div>`;
+  o+=`<div class="sh-sec" style="--c:var(--muted)">Export for review</div><div class="sub">Every saved order as a spreadsheet: one row per item with the count, par, reorder level, what was ordered and the price. Good for spotting patterns with Claude.</div>`;
+  o+=`<div class="actions" style="margin-top:10px"><button type="button" class="secondary" id="csvDown"${h.length?'':' disabled'}>Export order history (CSV)</button></div>`;
+  o+=`<div class="sh-sec" style="--c:var(--muted)">Backup</div><div class="sub">Counts, pars, the guide and every saved order, in one file.</div>`;
   o+=`<div class="actions" style="margin-top:10px"><button type="button" class="secondary" id="bkDown">Download backup (JSON)</button><button type="button" class="secondary" id="bkUp">Restore from JSON</button></div>`;
   o+=`<div class="actions"><button type="button" class="primary" id="hClose">Back to count</button></div>`;
   sh.innerHTML=o; sh.hidden=false; if(typeof openId!=='string'||!histOpenId)sh.scrollTop=0;
   $('#bkDown').onclick=downloadBackup;
+  $('#csvDown').onclick=exportHistoryCSV;
   $('#bkUp').onclick=()=>{
     const b=$('#bkUp');
     if(!b._armed){b._armed=true; b.textContent='Tap again: replaces everything'; setTimeout(()=>{b._armed=false;b.textContent='Restore from JSON';},4000); return;}
@@ -489,48 +523,207 @@ function openHistory(openId){
   };
 }
 
-function openAddItem(){
-  histOpen=false;
-  const sh=$('#sheet');
-  sh.innerHTML=`<h2>Add an item to the guide</h2><div class="sub">It joins the count sheet right away and syncs to your other devices.</div>
-  <div class="aform">
-    <label>Name<input id="ai-name" maxlength="80" placeholder="e.g. Dissolvable labels"></label>
-    <label>Where is it kept?<select id="ai-sec"><option value="walk">Walk-in cooler</option><option value="frz">Freezer</option><option value="dry">Dry storage</option><option value="sup" selected>Supplies</option></select></label>
-    <div class="arow"><label>Par (cases)<input id="ai-par" inputmode="decimal" value="1"></label><label>Price per case<input id="ai-price" inputmode="decimal" placeholder="optional"></label></div>
-    <label>Pack size<input id="ai-pack" maxlength="40" placeholder="optional, e.g. 6 × 500"></label>
-    <label>Shamrock item number<input id="ai-num" inputmode="numeric" maxlength="20" placeholder="optional"></label>
-    <div class="note" id="ai-err" style="color:var(--warn)"></div>
-  </div>
-  <div class="actions"><button type="button" class="secondary" id="ai-cancel">Cancel</button><button type="button" class="primary" id="ai-save">Add to guide</button></div>`;
-  sh.onclick=null; sh.onchange=null; sh.hidden=false; sh.scrollTop=0;
-  $('#ai-cancel').onclick=()=>{sh.hidden=true;};
-  $('#ai-save').onclick=()=>{
-    const name=$('#ai-name').value.trim(), err=$('#ai-err');
-    if(!name){err.textContent='Enter a name for the item.'; $('#ai-name').focus(); return;}
-    const num0=$('#ai-num').value.replace(/[^A-Za-z0-9]/g,'');
-    let id=num0||('c-'+slug(name)+'-'+Date.now().toString(36).slice(-4));
-    if(byId[id]){ if(num0){err.textContent='That item number is already in the guide.'; return;} id+='x'; }
-    const sec=$('#ai-sec').value, par=num($('#ai-par').value), price=num($('#ai-price').value);
-    st.custom.push({id,name,sec,par:par>0?par:1,price:price||0,pack:$('#ai-pack').value.trim()});
-    st.closed[sec]=false; save(); syncCustom(); render();
-    sh.hidden=true;
-    const row=document.querySelector(`.row[data-id="${id}"]`); if(row){row.scrollIntoView({block:'center'});}
-  };
-  setTimeout(()=>{const n=$('#ai-name'); if(n)n.focus();},50);
+/* ---------- guide editor ---------- */
+var guideView=null, guideY=0;
+function ensureSecs(){ if(!Array.isArray(st.secs)||!st.secs.length) st.secs=Object.keys(SECS).map(k=>({k,name:SECS[k].name,c:SECS[k].c,note:SECS[k].note||''})); }
+function ensureOrder(){ st.order=ITEMS.map(i=>i.id); }
+function secItems(k){return ITEMS.filter(i=>i.sec===k);}
+function guideChanged(){ save(); buildGuide(); render(); }
+function mvBtns(t,id,top,bot){
+  const a=`data-g="mv${t}" data-${t==='sec'?'k':'id'}="${esc(id)}"`;
+  return `<button type="button" class="g-mv" ${a} data-dir="up" aria-label="Move up"${top?' disabled':''}>↑</button><button type="button" class="g-mv" ${a} data-dir="dn" aria-label="Move down"${bot?' disabled':''}>↓</button>`;
 }
-$('#addItem').addEventListener('click',openAddItem);
+function openGuide(y){
+  histOpen=false; guideView='list';
+  const sh=$('#sheet'), keys=Object.keys(SECS);
+  let o=`<h2>Edit guide</h2><div class="sub">Tap an item or section to edit it. Arrows change the order.</div>
+  <div class="actions" style="margin-top:12px"><button type="button" class="secondary" data-g="additem">＋ Add item</button><button type="button" class="secondary" data-g="addsec">＋ Add section</button></div>`;
+  keys.forEach((k,si)=>{
+    const S=SECS[k], l=secItems(k);
+    o+=`<div class="g-sec" style="--c:${S.c}"><div class="g-sh"><button type="button" class="g-name" data-g="editsec" data-k="${k}"><b>${esc(S.name)}</b><small>${l.length} item${l.length===1?'':'s'} · edit section</small></button>${mvBtns('sec',k,si===0,si===keys.length-1)}</div>`;
+    if(!l.length)o+=`<div class="note">No items yet.</div>`;
+    l.forEach((i,ii)=>{o+=`<div class="g-it"><button type="button" class="g-name" data-g="edititem" data-id="${esc(i.id)}">${esc(i.name)}<small>${esc(i.pack)}${i.pack?' · ':''}${fmt2(i.price)} · par ${parOf(i)}</small></button>${mvBtns('it',i.id,ii===0,ii===l.length-1)}</div>`;});
+    o+='</div>';
+  });
+  const gone=BASE.filter(b=>st.edits[b.id]&&st.edits[b.id].hidden);
+  if(gone.length){
+    o+=`<div class="sh-sec" style="--c:var(--muted)">Removed items</div>`;
+    gone.forEach(b=>{o+=`<div class="g-it"><div class="g-name">${esc(st.edits[b.id].name||b.name)}<small>${esc(b.pack)}</small></div><button type="button" class="secondary g-rest" data-g="restore" data-id="${esc(b.id)}">Restore</button></div>`;});
+  }
+  o+=`<div class="actions"><button type="button" class="primary" data-g="done">Done</button></div>`;
+  sh.innerHTML=o; sh.hidden=false; sh.scrollTop=y||0; sh.onchange=null;
+  sh.onclick=ev=>{
+    const b=ev.target.closest('button[data-g]'); if(!b||b.disabled)return;
+    const g=b.dataset.g;
+    if(g==='done'){guideView=null; sh.hidden=true; return;}
+    guideY=sh.scrollTop;
+    if(g==='additem')return openItemForm(null);
+    if(g==='addsec')return openSecForm(null);
+    if(g==='edititem')return openItemForm(b.dataset.id);
+    if(g==='editsec')return openSecForm(b.dataset.k);
+    if(g==='restore'){
+      const id=b.dataset.id, e=st.edits[id]; if(!e)return;
+      delete e.hidden; if(!Object.keys(e).length)delete st.edits[id];
+      guideChanged(); return openGuide(guideY);
+    }
+    const dir=b.dataset.dir==='up'?-1:1;
+    if(g==='mvsec'){
+      ensureSecs(); const k=st.secs.findIndex(s=>s.k===b.dataset.k), j=k+dir; if(k<0||j<0||j>=st.secs.length)return;
+      [st.secs[k],st.secs[j]]=[st.secs[j],st.secs[k]]; guideChanged(); return openGuide(guideY);
+    }
+    if(g==='mvit'){
+      const i=byId[b.dataset.id]; if(!i)return;
+      const l=secItems(i.sec), k=l.indexOf(i), j=k+dir; if(j<0||j>=l.length)return;
+      const a=ITEMS.indexOf(l[k]), c=ITEMS.indexOf(l[j]); [ITEMS[a],ITEMS[c]]=[ITEMS[c],ITEMS[a]];
+      ensureOrder(); guideChanged(); return openGuide(guideY);
+    }
+  };
+}
+function openItemForm(id){
+  guideView='item';
+  const sh=$('#sheet'), i=id?byId[id]:null, isNew=!i, keys=Object.keys(SECS);
+  const sec0=i?i.sec:(SECS.sup?'sup':keys[keys.length-1]);
+  sh.innerHTML=`<h2>${isNew?'Add an item':'Edit item'}</h2><div class="sub">${isNew?'It joins the count sheet right away and syncs to your other devices.':'Changes apply to the count sheet and sync to your other devices.'}</div>
+  <div class="aform">
+    <label>Name<input id="f-name" maxlength="80" placeholder="e.g. Dissolvable labels"></label>
+    <label>Section<select id="f-sec">${keys.map(k=>`<option value="${k}"${k===sec0?' selected':''}>${esc(SECS[k].name)}</option>`).join('')}</select></label>
+    <div class="arow"><label>Pack size<input id="f-pack" maxlength="40" placeholder="e.g. 6 × 500"></label><label>Price per case<input id="f-price" inputmode="decimal" placeholder="0.00"></label></div>
+    <div class="arow"><label>Par (cases)<input id="f-par" inputmode="decimal"></label><label>Reorder at or below<input id="f-trig" inputmode="decimal" placeholder="any"></label></div>
+    <div class="arow"><label>Units per case<input id="f-upc" inputmode="decimal"></label><label>Unit name<input id="f-unit" maxlength="20" placeholder="e.g. bags"></label></div>
+    <label>Shamrock item number<input id="f-num" inputmode="numeric" maxlength="20" placeholder="optional"></label>
+    <label>Note<input id="f-tag" maxlength="80" placeholder="optional, shows under the item"></label>
+    <label class="chk"><input type="checkbox" id="f-big"> Big-ticket item</label>
+    <div class="note" id="f-err" style="color:var(--warn)"></div>
+  </div>
+  <div class="actions"><button type="button" class="secondary" id="f-cancel">Cancel</button><button type="button" class="primary" id="f-save">${isNew?'Add to guide':'Save'}</button></div>
+  ${isNew?'':'<div class="actions"><button type="button" class="secondary danger" id="f-del">Remove from guide</button></div>'}`;
+  sh.onclick=null; sh.onchange=null; sh.hidden=false; sh.scrollTop=0;
+  const v=(s,x)=>{$(s).value=x===undefined||x===null?'':x;};
+  if(i){ v('#f-name',i.name); v('#f-pack',i.pack); v('#f-price',i.price||''); v('#f-par',parOf(i)); v('#f-trig',trigOf(i)||''); v('#f-upc',upcOf(i)); v('#f-unit',i.unit); v('#f-num',numOf(i.id)); v('#f-tag',i.tag); $('#f-big').checked=!!i.big; }
+  else { v('#f-par',1); v('#f-upc',1); v('#f-unit','units'); }
+  const back=()=>openGuide(guideY);
+  $('#f-cancel').onclick=back;
+  $('#f-save').onclick=()=>{
+    const err=$('#f-err'), bad=(m,f)=>{err.textContent=m; if(f)$(f).focus();};
+    const name=$('#f-name').value.trim(); if(!name)return bad('Enter a name for the item.','#f-name');
+    const pt=$('#f-price').value.trim(), price=pt===''?0:num(pt); if(price===null)return bad('Price must be a number.','#f-price');
+    const par=num($('#f-par').value); if(par===null)return bad('Par must be a number (0 or more).','#f-par');
+    const tt=$('#f-trig').value.trim(), trig=tt===''?0:num(tt); if(trig===null)return bad('Reorder level must be a number, or leave it blank.','#f-trig');
+    const upc=num($('#f-upc').value); if(!(upc>0))return bad('Units per case must be more than 0.','#f-upc');
+    const sec=$('#f-sec').value, pack=$('#f-pack').value.trim(), unit=$('#f-unit').value.trim()||'units';
+    const numT=$('#f-num').value.replace(/[^A-Za-z0-9]/g,''), tag=$('#f-tag').value.trim(), big=$('#f-big').checked;
+    if(isNew){
+      const taken=x=>BASE.some(b=>b.id===x)||st.custom.some(c=>c.id===x);
+      let nid=numT||('c-'+slug(name)+'-'+Date.now().toString(36).slice(-4));
+      if(taken(nid)){ if(numT)return bad('That item number is already in the guide (check Removed items).','#f-num'); nid+='x'; }
+      const c={id:nid,name,sec,par:par>0?par:1,price,pack,unit,upc,big,tag}; if(numT)c.num=numT;
+      st.custom.push(c);
+      if(Array.isArray(st.order))st.order.push(nid);
+      id=nid;
+    } else {
+      const fields={name,pack,price,sec,unit,big,tag,num:numT};
+      if(i.sec!==sec){ ensureOrder(); st.order=st.order.filter(x=>x!==id).concat(id); }
+      if(i.custom){ const c=st.custom.find(c=>c.id===id); if(c){ Object.assign(c,fields,{upc,par:par>0?par:1}); } }
+      else {
+        const b=BASE.find(b=>b.id===id), e=Object.assign({},st.edits[id]||{});
+        Object.keys(fields).forEach(f=>{ const base=f==='num'?b.id:(b[f]===undefined?'':b[f]); if(fields[f]!==base)e[f]=fields[f]; else delete e[f]; });
+        if(Object.keys(e).length)st.edits[id]=e; else delete st.edits[id];
+      }
+    }
+    st.par[id]=par; st.trig[id]=trig; st.upc[id]=upc; st.closed[sec]=false;
+    guideChanged(); back();
+  };
+  const del=$('#f-del');
+  if(del)del.onclick=()=>{
+    if(!del._armed){del._armed=true; del.textContent='Tap again to remove'; setTimeout(()=>{del._armed=false;del.textContent='Remove from guide';},3000); return;}
+    if(i.custom){ st.custom=st.custom.filter(c=>c.id!==id); delete st.par[id]; delete st.trig[id]; delete st.upc[id]; delete st.cm[id]; }
+    else { st.edits[id]=Object.assign({},st.edits[id]||{},{hidden:true}); }
+    delete st.cnt[id]; delete st.skip[id];
+    guideChanged(); back();
+  };
+  if(isNew)setTimeout(()=>{const n=$('#f-name'); if(n)n.focus();},50);
+}
+function openSecForm(k){
+  guideView='sec';
+  const sh=$('#sheet'), S=k?SECS[k]:null, n=k?secItems(k).length:0, used=Object.values(SECS).map(s=>s.c);
+  const c0=S?S.c:((COLORS.find(x=>!used.includes(x[0]))||COLORS[COLORS.length-1])[0]);
+  sh.innerHTML=`<h2>${S?'Edit section':'Add a section'}</h2><div class="sub">Use the arrows on the guide screen to move it up or down.</div>
+  <div class="aform">
+    <label>Name<input id="s-name" maxlength="40" placeholder="e.g. Bar cooler"></label>
+    <div><div class="sub" style="margin-bottom:6px">Color</div><div class="swatches">${COLORS.map(([cv,cn])=>`<label class="sw"><input type="radio" name="s-c" value="${cv}"${cv===c0?' checked':''}><span style="background:${cv}"></span>${cn}</label>`).join('')}</div></div>
+    <label>Note<input id="s-note" maxlength="120" placeholder="optional, e.g. Count these once a week"></label>
+    <div class="note" id="s-err" style="color:var(--warn)"></div>
+  </div>
+  <div class="actions"><button type="button" class="secondary" id="s-cancel">Cancel</button><button type="button" class="primary" id="s-save">${S?'Save':'Add section'}</button></div>
+  ${S?`<div class="actions"><button type="button" class="secondary danger" id="s-del">Delete section</button></div>${n?`<div class="note">Move or remove its ${n} item${n===1?'':'s'} first.</div>`:''}`:''}`;
+  sh.onclick=null; sh.onchange=null; sh.hidden=false; sh.scrollTop=0;
+  if(S){ $('#s-name').value=S.name; $('#s-note').value=S.note||''; }
+  const back=()=>openGuide(guideY);
+  $('#s-cancel').onclick=back;
+  $('#s-save').onclick=()=>{
+    const name=$('#s-name').value.trim(); if(!name){$('#s-err').textContent='Enter a name for the section.'; $('#s-name').focus(); return;}
+    const c=(document.querySelector('input[name="s-c"]:checked')||{}).value||'var(--sup)', note=$('#s-note').value.trim();
+    ensureSecs();
+    if(S){ const s=st.secs.find(s=>s.k===k); Object.assign(s,{name,c,note}); }
+    else { const nk='s-'+Date.now().toString(36); st.secs.push({k:nk,name,c,note}); }
+    guideChanged(); back();
+  };
+  const del=$('#s-del');
+  if(del){
+    if(n||Object.keys(SECS).length<2)del.disabled=true;
+    del.onclick=()=>{
+      if(!del._armed){del._armed=true; del.textContent='Tap again to delete'; setTimeout(()=>{del._armed=false;del.textContent='Delete section';},3000); return;}
+      ensureSecs(); st.secs=st.secs.filter(s=>s.k!==k); delete st.closed[k];
+      guideChanged(); back();
+    };
+  }
+  if(!S)setTimeout(()=>{const x=$('#s-name'); if(x)x.focus();},50);
+}
+$('#editGuide').addEventListener('click',()=>openGuide(0));
 $('#hist').addEventListener('click',openHistory);
 $('#review').addEventListener('click',openSheet);
 
 
 /* ---------- backup / restore ---------- */
-function stateData(){return {day:st.day,par:st.par,cnt:st.cnt,trig:st.trig,upc:st.upc,cm:st.cm,skip:st.skip,custom:st.custom,rev:st.lrev||Date.now(),by:devId};}
-function downloadBackup(){
-  const blob=new Blob([JSON.stringify({state:stateData(),history:loadH()},null,1)],{type:'application/json'});
-  const a=document.createElement('a'), d=new Date();
-  a.href=URL.createObjectURL(blob);
-  a.download='orders-backup-'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.json';
+function stateData(){return {day:st.day,par:st.par,cnt:st.cnt,trig:st.trig,upc:st.upc,cm:st.cm,skip:st.skip,custom:st.custom,edits:st.edits,order:st.order,secs:st.secs,rev:st.lrev||Date.now(),by:devId};}
+// Apply the guide-shaped fields of a synced or restored state; returns true if the guide itself changed.
+function applyGuide(s){
+  const cl=x=>JSON.parse(JSON.stringify(x));
+  const sig=()=>JSON.stringify([st.custom,st.edits,st.order,st.secs]), old=sig();
+  st.custom=Array.isArray(s.custom)?cl(s.custom):[];
+  st.edits=(s.edits&&typeof s.edits==='object'&&!Array.isArray(s.edits))?cl(s.edits):{};
+  st.order=Array.isArray(s.order)?cl(s.order):null;
+  st.secs=Array.isArray(s.secs)&&s.secs.length?cl(s.secs):null;
+  return sig()!==old;
+}
+const p2=n=>String(n).padStart(2,'0');
+function dateStamp(d){d=d||new Date(); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+function saveFile(text,type,name){
+  const blob=new Blob([text],{type});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function downloadBackup(){ saveFile(JSON.stringify({state:stateData(),history:loadH()},null,1),'application/json','orders-backup-'+dateStamp()+'.json'); }
+// One row per item per saved order (everything counted plus everything ordered), oldest first, for spotting patterns.
+function exportHistoryCSV(){
+  const cell=v=>{ if(v===null||v===undefined)return ''; const s=String(v); return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const rows=[['order_id','saved_at','saved_weekday','delivery_day','emergency','note','order_total','item_number','item_name','section','counted_cases','par_cases','reorder_at_cases','ordered_cases','skipped','added_by_hand','price_per_case','line_total']];
+  loadH().slice().sort((a,b)=>a.ts-b.ts).forEach(e=>{
+    const d=new Date(e.ts), when=dateStamp(d)+' '+p2(d.getHours())+':'+p2(d.getMinutes());
+    const m={}, ids=[];
+    (e.all||[]).forEach(a=>{ if(!m[a.id]){m[a.id]={};ids.push(a.id);} m[a.id].a=a; });
+    (e.lines||[]).forEach(l=>{ if(!m[l.id]){m[l.id]={};ids.push(l.id);} m[l.id].l=l; });
+    ids.forEach(id=>{
+      const a=m[id].a||{}, l=m[id].l||{}, it=byId[id], sec=a.sec||l.sec||(it&&it.sec)||'';
+      const q=l.q!==undefined?l.q:(a.q||0), price=l.price!==undefined?l.price:(it?it.price:'');
+      rows.push([e.id||e.ts, when, d.toLocaleDateString('en-US',{weekday:'short'}), e.day==='tue'?'Tuesday':'Saturday', e.emerg?'yes':'no', e.note||'', (+e.total||0).toFixed(2),
+        l.manual?'':numOf(id), a.name||l.name||'', SECS[sec]?SECS[sec].name:sec,
+        a.c!==undefined?a.c:(l.c!==undefined&&l.c!==null?l.c:''), a.par!==undefined?a.par:'', a.trig?a.trig:'', q, a.skip?'yes':'no', l.manual?'yes':'no',
+        price, l.q?(l.q*(l.price||0)).toFixed(2):'0.00']);
+    });
+  });
+  saveFile('﻿'+rows.map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv','order-history-'+dateStamp()+'.csv');
 }
 function pickJSON(cb){
   const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json';
@@ -541,11 +734,11 @@ async function restoreBackup(o){
   if(!o||typeof o!=='object'||!o.state||typeof o.state!=='object'||!Array.isArray(o.history)){alert('That file is not an order backup. It needs "state" and "history".');return false;}
   const s=JSON.parse(JSON.stringify(o.state)), cl=x=>(x&&typeof x==='object'&&!Array.isArray(x))?x:{};
   st.par=cl(s.par); st.cnt=cl(s.cnt); st.trig=cl(s.trig); st.upc=cl(s.upc); st.cm=cl(s.cm); st.skip=cl(s.skip);
-  st.custom=Array.isArray(s.custom)?s.custom:[];
+  applyGuide(s);
   if(s.day==='tue'||s.day==='sat')st.day=s.day;
   const hist=JSON.parse(JSON.stringify(o.history)).filter(e=>e&&Array.isArray(e.lines)&&(e.id||e.ts)).sort((a,b)=>b.ts-a.ts).slice(0,100);
   Object.keys(pendUp).forEach(k=>delete pendUp[k]); Object.keys(pendDel).forEach(k=>delete pendDel[k]);
-  saveH(hist); syncCustom(); render(); save();
+  saveH(hist); buildGuide(); render(); save();
   if(!DB)return true;
   setSync('pending');
   try{
@@ -606,8 +799,7 @@ function onRemoteState(d){
   if(rr>lr){
     const cl=o=>JSON.parse(JSON.stringify(o||{}));
     st.par=cl(d.par); st.cnt=cl(d.cnt); st.trig=cl(d.trig); st.upc=cl(d.upc); st.cm=cl(d.cm); st.skip=cl(d.skip);
-    const oldC=JSON.stringify(st.custom); st.custom=Array.isArray(d.custom)?JSON.parse(JSON.stringify(d.custom)):[];
-    if(JSON.stringify(st.custom)!==oldC){ syncCustom(); render(); }
+    if(applyGuide(d)){ buildGuide(); render(); if(guideView==='list'&&!$('#sheet').hidden)openGuide($('#sheet').scrollTop); }
     if(d.day)st.day=d.day;
     st.lrev=rr; saveLocal(); refreshInputs(); setSync('ok');
   } else { pushState(); }
