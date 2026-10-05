@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Willow Creek order count</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#17252d; --paper:#eef2f3; --card:#ffffff; --line:#d3dde1; --muted:#566b75;
+  --walk:#1f6f8b; --frz:#4a58b0; --dry:#9a6a1c; --sup:#5f717a; --unk:#8a4b7a;
+  --warn:#a93d0c; --warnbg:#fdeee4; --hit:#17252d; --hittxt:#ffffff; --focus:#1f6f8b;
+  --sans:"Barlow",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --cond:"Barlow Semi Condensed","Barlow",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#e6eef1; --paper:#0f171b; --card:#172228; --line:#2a3a42; --muted:#93a8b1;
+    --walk:#5bb6d4; --frz:#98a5f2; --dry:#dca64f; --sup:#9aabb3; --unk:#d596c4;
+    --warn:#ff9f6d; --warnbg:#2e1c11; --hit:#e6eef1; --hittxt:#0f171b; --focus:#5bb6d4;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e6eef1; --paper:#0f171b; --card:#172228; --line:#2a3a42; --muted:#93a8b1;
+  --walk:#5bb6d4; --frz:#98a5f2; --dry:#dca64f; --sup:#9aabb3; --unk:#d596c4;
+  --warn:#ff9f6d; --warnbg:#2e1c11; --hit:#e6eef1; --hittxt:#0f171b; --focus:#5bb6d4;
+}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.35;min-height:100%;padding-bottom:84px;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);border-bottom:1px solid var(--line);padding:10px 14px 10px}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-family:var(--cond);font-weight:700;font-size:22px;margin:0;letter-spacing:.2px}
+.sub{font-size:13px;color:var(--muted)}
+.seg{display:flex;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;flex:none}
+.seg button{border:0;background:transparent;padding:8px 12px;font-weight:600;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--hit);color:var(--hittxt)}
+.prog{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:13px;color:var(--muted)}
+.bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ink)}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .2s}}
+.sync{font-size:12px;color:var(--muted);margin-top:4px;min-height:16px}
+.linkbtn{border:0;background:none;padding:4px 0;font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+
+main{padding:6px 10px 20px}
+.sec{margin-top:14px}
+.sec-h{width:100%;display:flex;align-items:center;gap:10px;text-align:left;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:8px;padding:12px 12px}
+.sec-h .nm{font-family:var(--cond);font-weight:700;font-size:18px;flex:1}
+.sec-h .ct{font-size:13px;color:var(--muted)}
+.sec-h .chev{width:10px;height:10px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin-right:4px}
+.sec.closed .chev{transform:rotate(-45deg)}
+.sec.closed .rows{display:none}
+.note{font-size:13px;color:var(--muted);padding:8px 4px 0}
+.rows{margin-top:6px}
+
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto 54px;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:9px 8px 9px 10px;margin-top:6px}
+.nm2{font-family:var(--cond);font-weight:600;font-size:17px;line-height:1.15}
+.meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.meta2{font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;border-radius:4px;padding:1px 6px;margin-left:6px;background:var(--warnbg);color:var(--warn);white-space:nowrap}
+.par,.trig,.upc{width:42px;height:26px;text-align:center;border:1px solid var(--line);border-radius:5px;background:var(--paper);font-weight:600;font-size:14px;padding:0}
+.meta2 label{display:inline-flex;align-items:center;gap:5px}
+.cc{display:flex;flex-direction:column;align-items:center;gap:2px}
+.mode{border:0;background:none;padding:2px 4px;font-size:12px;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+.eq{font-size:11px;color:var(--muted);min-height:13px}
+.meta2 label{display:inline-flex;align-items:center;gap:5px}
+.oh{display:flex;align-items:center;gap:2px}
+.oh button{width:38px;height:44px;border:1.5px solid var(--line);background:var(--paper);border-radius:8px;font-size:22px;line-height:1;font-weight:500}
+.oh button:active{background:var(--line)}
+.cnt{width:46px;height:44px;text-align:center;border:1.5px solid var(--ink);border-radius:8px;background:var(--card);font-family:var(--cond);font-weight:700;font-size:20px;padding:0}
+.cnt::placeholder{color:var(--muted);font-weight:500}
+.ord{text-align:center}
+.skipb{border:0;background:none;padding:3px 2px;margin-top:2px;font-size:11.5px;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+.row.skipped{opacity:.55}
+.row.skipped .ordn{font-size:15px}
+.ordn{display:block;font-family:var(--cond);font-weight:700;font-size:26px;line-height:1;min-height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--muted)}
+.ord.on .ordn{background:var(--hit);color:var(--hittxt)}
+.ordl{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--paper);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px}
+.sum{flex:1;min-width:0}
+.sum b{display:block;font-family:var(--cond);font-size:19px}
+.sum span{font-size:13px;color:var(--muted)}
+.primary{border:0;background:var(--hit);color:var(--hittxt);border-radius:9px;padding:13px 18px;font-weight:600;font-size:16px;flex:none}
+.primary[disabled]{opacity:.4}
+.secondary{border:1.5px solid var(--ink);background:transparent;border-radius:9px;padding:12px 16px;font-weight:600;font-size:16px}
+
+#sheet{position:fixed;inset:0;z-index:20;background:var(--paper);overflow:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px))}
+#sheet[hidden]{display:none}
+#sheet h2{font-family:var(--cond);font-size:26px;margin:0}
+.warnbox{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:10px 12px;margin:12px 0;font-size:14.5px;font-weight:500}
+.infobox{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:12px 0;font-size:14.5px}
+.sh-sec{margin-top:16px;font-family:var(--cond);font-weight:700;font-size:16px;color:var(--c)}
+.sh-line{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.sh-q{font-family:var(--cond);font-weight:700;font-size:20px;min-width:34px}
+.sh-n{flex:1}
+.sh-n small{display:block;color:var(--muted);font-size:12.5px}
+.sh-p{font-size:14px;color:var(--muted);white-space:nowrap}
+
+.hent{background:var(--card);border:1px solid var(--line);border-radius:8px;margin-top:10px;padding:0 12px}
+.hent summary{list-style:none;cursor:pointer;padding:12px 0;display:flex;flex-direction:column;gap:2px}
+.hent summary::-webkit-details-marker{display:none}
+.hent summary b{font-family:var(--cond);font-size:17px}
+.hent summary span{font-size:13px;color:var(--muted)}
+.hbody{padding-bottom:12px}
+.dl{align-self:center;font-size:12px;font-weight:600;border-radius:4px;padding:2px 7px;background:var(--line);color:var(--muted);white-space:nowrap}
+.dl.up{background:var(--warnbg);color:var(--warn)}
+.dl.dn{background:var(--paper);color:var(--ink);border:1px solid var(--line)}
+.dl.new{background:var(--hit);color:var(--hittxt)}
+.sh-line.gone{opacity:.65}
+
+.emg{display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-size:14.5px}
+.emg input{width:20px;height:20px}
+.enote{width:100%;margin:4px 0 6px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:14.5px}
+.hent.emerg{border-left:5px solid var(--warn)}
+.hent summary b .chip{margin-left:8px}
+.addit{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.addit summary{cursor:pointer;font-size:14.5px;font-weight:600;padding:6px 0;list-style:none}
+.addit summary::-webkit-details-marker{display:none}
+.addform{display:grid;grid-template-columns:1fr 64px 84px;gap:6px;margin-top:6px}
+.addform input{padding:9px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:15px;min-width:0}
+.addform .an{grid-column:1/-1}
+.addform button{grid-column:1/-1}
+.rmb{border:0;background:none;padding:2px 0;font-size:12.5px;color:var(--muted);text-decoration:underline;text-underline-offset:2px;margin-top:2px}
+
+.aform{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.aform label{display:flex;flex-direction:column;gap:5px;font-size:13.5px;color:var(--muted)}
+.aform input,.aform select{padding:11px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:16px;min-width:0}
+.arow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;gap:10px;margin-top:20px}
+.actions button{flex:1}
+.sync{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sync .linkbtn{padding:8px 0 8px 16px;margin:-8px 0;font-size:12px}
+.offer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.offer[hidden]{display:none}
+.offer span{flex:1;min-width:180px}
+
+body.locked>header,body.locked>main,body.locked>.foot,body.locked>#sheet{display:none!important}
+body.locked{padding-bottom:0}
+#lock{position:fixed;inset:0;z-index:30;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#lock[hidden]{display:none}
+#lock h1{font-size:26px}
+.pindots{font-family:var(--cond);font-size:34px;letter-spacing:8px;height:44px;line-height:44px;margin:14px 0 4px;min-width:200px;text-align:center;border-bottom:2px solid var(--line)}
+.pinerr{min-height:20px;font-size:14.5px;font-weight:600;color:var(--warn);margin-bottom:10px;text-align:center}
+#pad{display:grid;grid-template-columns:repeat(3,76px);gap:12px}
+#pad button{height:64px;border:1.5px solid var(--line);background:var(--card);border-radius:12px;font-family:var(--cond);font-size:28px;font-weight:600}
+#pad button:active{background:var(--line)}
+#pad .k-del{font-size:18px;font-weight:500}
+#pad .k-go{background:var(--hit);color:var(--hittxt);border-color:var(--hit);font-size:18px}
+#pad .k-go[disabled]{opacity:.4}
+</style>
+</head>
+<body class="locked">
+<div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockH">
+  <h1 id="lockH">Order count</h1>
+  <div class="sub">Enter your PIN</div>
+  <div class="pindots" id="pinDots" aria-live="polite"></div>
+  <div class="pinerr" id="pinErr" role="alert"></div>
+  <div id="pad">
+    <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+    <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+    <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+    <button type="button" data-k="del" class="k-del" aria-label="Delete last digit">⌫</button><button type="button" data-k="0">0</button><button type="button" data-k="go" class="k-go" id="pinGo" disabled>Unlock</button>
+  </div>
+</div>
+<header class="top">
+  <div class="top-row">
+    <div><h1>Order count</h1><div class="sub" id="sub"></div></div>
+    <div class="seg" role="group" aria-label="Delivery day">
+      <button type="button" data-day="tue" aria-pressed="false">Tuesday</button>
+      <button type="button" data-day="sat" aria-pressed="false">Saturday</button>
+    </div>
+  </div>
+  <div class="prog">
+    <div class="bar"><i id="barfill"></i></div>
+    <span id="progtxt"></span>
+    <button type="button" class="linkbtn" id="addItem">Add item</button>
+    <button type="button" class="linkbtn" id="hist">History</button>
+    <button type="button" class="linkbtn" id="clear">Clear counts</button>
+  </div>
+  <div class="sync" id="syncs"><span id="syncTxt"></span><button type="button" class="linkbtn" id="lockBtn">Lock</button></div>
+  <div class="infobox offer" id="importOffer" hidden><span>Nothing saved on the server yet. Import your orders-export.json?</span><button type="button" class="primary" id="importBtn">Import file</button><button type="button" class="linkbtn" id="importNo">Not now</button></div>
+</header>
+<main id="list"></main>
+<div class="foot">
+  <div class="sum"><b id="sumLines">Count items to build your order</b><span id="sumTotal"></span></div>
+  <button type="button" class="primary" id="review" disabled>Review order</button>
+</div>
+<div id="sheet" hidden role="dialog" aria-modal="true" aria-label="Order review"></div>
+
+<script>
+const ITEMS = [{"id": "4459521", "name": "Hashbrown, shredded", "pack": "2 \u00d7 10 lb", "sec": "walk", "price": 24.51, "times": 3, "avg": 3.5, "par": 5, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "4914511", "name": "Bacon, applewood lay-flat", "pack": "15 lb", "sec": "walk", "price": 64.61, "times": 3, "avg": 1.5, "par": 2, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4852091", "name": "Eggs, medium", "pack": "15 doz", "sec": "walk", "price": 11.09, "times": 3, "avg": 1.5, "par": 2, "big": false, "tag": "", "upc": 15, "unit": "doz"}, {"id": "2292271", "name": "Cheddar, shredded", "pack": "5 lb", "sec": "walk", "price": 12.86, "times": 3, "avg": 1.0, "par": 2, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "3941401", "name": "Fruit salad", "pack": "8 lb pail", "sec": "walk", "price": 28.74, "times": 3, "avg": 1.0, "par": 2, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4852071", "name": "Liquid whole egg", "pack": "2 \u00d7 20 lb", "sec": "walk", "price": 53.87, "times": 3, "avg": 1.0, "par": 2, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "4184971", "name": "Avocado, ripe", "pack": "10 lb", "sec": "walk", "price": 41.82, "times": 3, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4811621", "name": "Coffee, Summertime 2.5 oz", "pack": "48 ct", "sec": "walk", "price": 88.66, "times": 3, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 48, "unit": "bags"}, {"id": "1951391", "name": "Cottage cheese, 4% full fat", "pack": "2 \u00d7 5 lb", "sec": "walk", "price": 29.13, "times": 2, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "tubs"}, {"id": "4683141", "name": "Green bell pepper", "pack": "5 lb", "sec": "walk", "price": 14.75, "times": 2, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "1082741", "name": "Green leaf lettuce, washed", "pack": "2 \u00d7 5 lb", "sec": "walk", "price": 26.8, "times": 3, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "4783481", "name": "Buttermilk", "pack": "6 \u00d7 \u00bd gal", "sec": "walk", "price": 22.82, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "jugs"}, {"id": "4796184", "name": "Coleslaw mix", "pack": "5 lb", "sec": "walk", "price": 7.67, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "2231551", "name": "Monterey jack, shredded", "pack": "4 \u00d7 5 lb", "sec": "walk", "price": 46.9, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "bags"}, {"id": "1907631", "name": "Tomato", "pack": "60 ct", "sec": "walk", "price": 32.61, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4408771", "name": "American cheese, sliced", "pack": "4 \u00d7 5 lb", "sec": "walk", "price": 50.55, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "packs"}, {"id": "3358371", "name": "Apple juice", "pack": "8 \u00d7 64 oz", "sec": "walk", "price": 35.64, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 8, "unit": "bottles"}, {"id": "1933691", "name": "Button mushrooms", "pack": "10 lb", "sec": "walk", "price": 27.88, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "3157941", "name": "Corn tortilla, mini taco", "pack": "6 \u00d7 80", "sec": "walk", "price": 24.72, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "packs"}, {"id": "2219441", "name": "Corned beef", "pack": "2 \u00d7 8 lb", "sec": "walk", "price": 129.92, "times": 1, "avg": 0.25, "par": 1, "big": true, "tag": "", "upc": 2, "unit": "pieces"}, {"id": "1951401", "name": "Cottage cheese, low fat", "pack": "2 \u00d7 5 lb", "sec": "walk", "price": 28.9, "times": 1, "avg": 0.25, "par": 0, "big": false, "tag": "Backup for full-fat cottage cheese", "upc": 2, "unit": "tubs"}, {"id": "1602381", "name": "Diced yellow onion", "pack": "2 \u00d7 5 lb", "sec": "walk", "price": 20.08, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "3462141", "name": "Flour tortilla 12\"", "pack": "12 \u00d7 12", "sec": "walk", "price": 52.63, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 12, "unit": "packs"}, {"id": "1614791", "name": "Half & half cups", "pack": "400 ct", "sec": "walk", "price": 22.37, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "3473681", "name": "Jalape\u00f1o", "pack": "10 lb", "sec": "walk", "price": 16.82, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "1612201", "name": "Orange juice", "pack": "4 \u00d7 1 gal", "sec": "walk", "price": 51.99, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "gal"}, {"id": "4470801", "name": "Provolone, sliced", "pack": "6 \u00d7 1.5 lb", "sec": "walk", "price": 31.65, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "packs"}, {"id": "4761771", "name": "Red onion", "pack": "10 lb", "sec": "walk", "price": 13.26, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "1930411", "name": "Whipped butter cups", "pack": "720 ct", "sec": "walk", "price": 32.38, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4783491", "name": "Whole milk", "pack": "4 \u00d7 1 gal", "sec": "walk", "price": 23.13, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "gal"}, {"id": "4849891", "name": "Fries, XL straight cut", "pack": "6 \u00d7 5 lb", "sec": "frz", "price": 59.49, "times": 3, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "bags"}, {"id": "4124251", "name": "Gyro, beef sliced", "pack": "2 \u00d7 5 lb", "sec": "frz", "price": 76.32, "times": 3, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "2570221", "name": "Hollandaise", "pack": "4 \u00d7 3 lb", "sec": "frz", "price": 45.65, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "bags"}, {"id": "4433661", "name": "Sausage patty 1.5 oz", "pack": "10 lb", "sec": "frz", "price": 30.08, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4041541", "name": "Biscuit, Brickfire 3 oz", "pack": "6 \u00d7 16", "sec": "frz", "price": 41.91, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "bags"}, {"id": "2252981", "name": "Biscuit, Pillsbury 2.85 oz", "pack": "75 ct", "sec": "frz", "price": 39.33, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "5067881", "name": "Breaded steak 5.33 oz", "pack": "30 ct", "sec": "frz", "price": 80.56, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "0043476", "name": "Brioche bun 4.5\"", "pack": "4 \u00d7 12", "sec": "frz", "price": 31.27, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "packs"}, {"id": "3955731", "name": "Chicken breast 4 oz, cooked", "pack": "2 \u00d7 5.6 lb", "sec": "frz", "price": 71.76, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "5011391", "name": "Chicken tender, breaded", "pack": "2 \u00d7 5 lb", "sec": "frz", "price": 48.32, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "4827321", "name": "Chorizo, Polidori", "pack": "2 \u00d7 7 lb", "sec": "frz", "price": 61.42, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "0004684", "name": "Chorizo, Vista Verde", "pack": "2 \u00d7 5 lb", "sec": "frz", "price": 40.04, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 2, "unit": "bags"}, {"id": "3130431", "name": "Coulotte steak 5 oz", "pack": "40 ct", "sec": "frz", "price": 209.08, "times": 1, "avg": 0.25, "par": 1, "big": true, "tag": "", "upc": 1, "unit": "units"}, {"id": "1374391", "name": "Egg roll skin", "pack": "10 \u00d7 3 lb", "sec": "frz", "price": 42.39, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 10, "unit": "packs"}, {"id": "0036321", "name": "English muffin", "pack": "72 ct", "sec": "frz", "price": 46.15, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "1905941", "name": "Ham, diced", "pack": "4 \u00d7 2.5 lb", "sec": "frz", "price": 45.75, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "bags"}, {"id": "2581801", "name": "Hoagie roll 8\"", "pack": "8 \u00d7 6", "sec": "frz", "price": 35.46, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 8, "unit": "packs"}, {"id": "1855291", "name": "Philly steak 6 oz", "pack": "32 ct", "sec": "frz", "price": 104.87, "times": 1, "avg": 0.25, "par": 1, "big": true, "tag": "", "upc": 1, "unit": "units"}, {"id": "3064821", "name": "Prime rib (top round cap-off)", "pack": "12 lb", "sec": "frz", "price": 85.44, "times": 1, "avg": 0.25, "par": 1, "big": true, "tag": "Frozen, can move to a lighter order", "upc": 1, "unit": "units"}, {"id": "3690421", "name": "Sausage link, Hormel", "pack": "10 lb", "sec": "frz", "price": 52.66, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4634721", "name": "Texas toast", "pack": "8 \u00d7 24 oz", "sec": "frz", "price": 29.22, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 8, "unit": "loaves"}, {"id": "3151131", "name": "Coulotte steak 8 oz", "pack": "24 ct", "sec": "frz", "price": 199.32, "times": 0, "avg": 0.0, "par": 0, "big": true, "tag": "", "upc": 1, "unit": "units"}, {"id": "2699931", "name": "Green chiles, diced", "pack": "6 \u00d7 #10", "sec": "dry", "price": 70.1, "times": 2, "avg": 0.5, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "cans"}, {"id": "1919801", "name": "Corn Flakes", "pack": "4 \u00d7 26 oz", "sec": "dry", "price": 28.58, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "boxes"}, {"id": "1925931", "name": "Corned beef hash", "pack": "6 \u00d7 #10", "sec": "dry", "price": 121.04, "times": 1, "avg": 0.25, "par": 1, "big": true, "tag": "", "upc": 6, "unit": "cans"}, {"id": "3204631", "name": "Country gravy mix", "pack": "6 \u00d7 24 oz", "sec": "dry", "price": 29.48, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "packs"}, {"id": "1250891", "name": "Creamer cups, vanilla", "pack": "288 ct", "sec": "dry", "price": 26.83, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4508501", "name": "Diced tomatoes", "pack": "6 \u00d7 #10", "sec": "dry", "price": 34.53, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "cans"}, {"id": "3574081", "name": "Fry oil, canola", "pack": "35 lb", "sec": "dry", "price": 55.85, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "2699961", "name": "Green chiles, whole", "pack": "12 \u00d7 28 oz", "sec": "dry", "price": 55.55, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 12, "unit": "cans"}, {"id": "1571101", "name": "Hashbrown, dehydrated", "pack": "6 \u00d7 40.5 oz", "sec": "dry", "price": 66.83, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "bags"}, {"id": "1913921", "name": "Jam cups, blackberry", "pack": "200 ct", "sec": "dry", "price": 26.29, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "1913911", "name": "Jam cups, strawberry", "pack": "200 ct", "sec": "dry", "price": 19.46, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4293951", "name": "Pan & grill oil", "pack": "35 lb", "sec": "dry", "price": 50.38, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4912651", "name": "Pancake syrup", "pack": "4 \u00d7 1 gal", "sec": "dry", "price": 42.24, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "jugs"}, {"id": "1919851", "name": "Rice Krispies", "pack": "4 \u00d7 27 oz", "sec": "dry", "price": 39.6, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "boxes"}, {"id": "4552051", "name": "Salt", "pack": "25 lb", "sec": "dry", "price": 14.18, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "3533721", "name": "Sugar, granulated", "pack": "50 lb", "sec": "dry", "price": 42.59, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "4608201", "name": "Vanilla flavoring", "pack": "128 oz", "sec": "dry", "price": 25.16, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "2175761", "name": "White vinegar", "pack": "4 \u00d7 128 oz", "sec": "dry", "price": 27.23, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "jugs"}, {"id": "0043662", "name": "Container 9\u00d79, Eco-System", "pack": "150 ct", "sec": "sup", "price": 67.39, "times": 3, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 150, "unit": "containers"}, {"id": "2402143", "name": "Foil sheets 12\u00d710.75", "pack": "200 ct", "sec": "sup", "price": 16.93, "times": 1, "avg": 0.75, "par": 1, "big": false, "tag": "", "upc": 1, "unit": "units"}, {"id": "2738421", "name": "Dinner napkins, Tork", "pack": "12 \u00d7 334", "sec": "sup", "price": 96.15, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 12, "unit": "packs"}, {"id": "4135401", "name": "Oven & grill cleaner", "pack": "4 \u00d7 1 gal", "sec": "sup", "price": 95.13, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 4, "unit": "jugs"}, {"id": "4378211", "name": "Paper towel roll, hardwound", "pack": "6 \u00d7 800 ft", "sec": "sup", "price": 42.77, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 6, "unit": "rolls"}, {"id": "4334591", "name": "Trash liner 33 gal", "pack": "10 \u00d7 10", "sec": "sup", "price": 64.4, "times": 1, "avg": 0.25, "par": 1, "big": false, "tag": "", "upc": 10, "unit": "packs"}];
+const ORDERS_IN_SAMPLE = 4;
+const SECS = {
+  walk:{name:'Walk-in cooler',c:'var(--walk)'},
+  frz:{name:'Freezer',c:'var(--frz)'},
+  dry:{name:'Dry storage',c:'var(--dry)'},
+  sup:{name:'Supplies',c:'var(--sup)',note:'Slow movers. Count these once a week, not every order.'},
+  unk:{name:'Unnamed items',c:'var(--unk)',note:'Bought in August but not in the guide export. Check what these are.'}
+};
+const KEY='wc-order-count-v1';
+let st={day:null,par:{},cnt:{},trig:{},upc:{},cm:{},skip:{},custom:[],v:0,closed:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&typeof s==='object') st=Object.assign(st,s);}catch(e){}
+if(!st.trig)st.trig={};
+if(!st.day){const d=new Date().getDay(); st.day=(d===6||d===0||d===1||d===2)?'tue':'sat';}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+function save(){st.lrev=Date.now(); saveLocal(); scheduleSync();}
+const byId={}; ITEMS.forEach(i=>byId[i.id]=i);
+if(!Array.isArray(st.custom))st.custom=[];
+function syncCustom(){
+  for(let k=ITEMS.length-1;k>=0;k--) if(ITEMS[k].custom){delete byId[ITEMS[k].id]; ITEMS.splice(k,1);}
+  st.custom.forEach(c=>{
+    const pr=+c.price||0;
+    const it={id:c.id,name:c.name,pack:c.pack||'',sec:c.sec,price:pr,times:0,avg:0,par:+c.par>0?+c.par:1,upc:1,unit:'units',big:pr>=100,tag:'Added by you',custom:true};
+    ITEMS.push(it); byId[it.id]=it;
+  });
+}
+syncCustom();
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmt2=n=>'$'+n.toFixed(2);
+const parOf=i=>(st.par[i.id]!==undefined?st.par[i.id]:i.par);
+const trigOf=i=>(st.trig[i.id]!==undefined?st.trig[i.id]:(i.sec==='sup'?0.4:0));
+const cntOf=i=>(st.cnt[i.id]===undefined||st.cnt[i.id]===null?null:st.cnt[i.id]);
+const upcOf=i=>(st.upc[i.id]>0?st.upc[i.id]:i.upc);
+const modeOf=i=>(st.cm[i.id]!==undefined?st.cm[i.id]:(i.sec==='sup'&&i.upc>1&&i.upc<=24?'u':'c'));
+const cntCases=i=>{const c=cntOf(i); if(c===null)return null; return modeOf(i)==='u'?c/upcOf(i):c;};
+const unitOf=i=>(modeOf(i)==='u'?i.unit:'cases');
+if(!st.upc)st.upc={}; if(!st.cm)st.cm={}; if(!st.skip)st.skip={};
+if(!st.v){ ITEMS.forEach(i=>{ if(st.cnt[i.id]!==undefined&&st.cm[i.id]===undefined&&modeOf(i)==='u')st.cm[i.id]='c'; }); st.v=2; saveLocal(); }
+function ordOf(i){ if(st.skip[i.id])return 0; return ordRaw(i); }
+function ordRaw(i){
+  const c=cntCases(i); if(c===null)return null;
+  const tr=trigOf(i);
+  if(tr>0&&c>tr+1e-9)return 0;
+  const need=parOf(i)-c;
+  let q=need>1e-9?Math.ceil(need-1e-9):0;
+  if(tr>0&&q<1)q=1;
+  return q;
+}
+function num(v){const n=parseFloat(String(v).replace(',','.')); return isFinite(n)&&n>=0?n:null;}
+
+function render(){
+  let h='';
+  Object.keys(SECS).forEach(k=>{
+    const list=ITEMS.filter(i=>i.sec===k); if(!list.length)return;
+    const S=SECS[k];
+    h+=`<section class="sec${st.closed[k]?' closed':''}" data-sec="${k}" style="--c:${S.c}">
+      <button type="button" class="sec-h" data-act="tog" aria-expanded="${!st.closed[k]}"><span class="nm">${S.name}</span><span class="ct" id="sc-${k}"></span><span class="chev"></span></button>
+      <div class="rows">${S.note?`<div class="note">${S.note}</div>`:''}`;
+    list.forEach(i=>{
+      const c=cntOf(i);
+      h+=`<div class="row" data-id="${i.id}">
+        <div class="info">
+          <div class="nm2">${esc(i.name)}</div>
+          <div class="meta">${esc(i.pack)}${i.pack?' · ':''}${fmt2(i.price)}${i.big?'<span class="chip">big-ticket</span>':''}</div>
+          <div class="meta2"><label>par <input class="par" inputmode="decimal" aria-label="Par in cases for ${esc(i.name)}" value="${parOf(i)}"> case</label><label>reorder at or below <input class="trig" inputmode="decimal" placeholder="any" aria-label="Only reorder at or below this fraction of a case for ${esc(i.name)}" value="${trigOf(i)||''}"> case</label><label class="upcl">1 case = <input class="upc" inputmode="decimal" aria-label="Units per case for ${esc(i.name)}" value="${upcOf(i)}"> ${esc(i.unit)}</label><span>${i.times===0?'':`in ${i.times} of ${ORDERS_IN_SAMPLE} orders`}</span>${i.tag?`<span>${esc(i.tag)}</span>`:''}</div>${i.custom?'<button type="button" class="rmb" data-act="rmitem">remove from guide</button>':''}
+        </div>
+        <div class="cc"><div class="oh"><button type="button" data-act="dec" aria-label="One less">−</button><input class="cnt" inputmode="decimal" placeholder="count" aria-label="On hand for ${esc(i.name)}" value="${c===null?'':c}"><button type="button" data-act="inc" aria-label="One more">+</button></div><button type="button" class="mode" data-act="mode" aria-label="Switch between counting cases and individual items"></button><div class="eq"></div></div>
+        <div class="ord"><span class="ordn">–</span><span class="ordl">order</span><button type="button" class="skipb" data-act="skip" aria-label="Leave this item out of this order">skip</button></div>
+      </div>`;
+    });
+    h+='</div></section>';
+  });
+  $('#list').innerHTML=h;
+  ITEMS.forEach(updRow); updTotals();
+}
+function updRow(i){
+  const row=document.querySelector(`.row[data-id="${i.id}"]`); if(!row)return;
+  const o=ordOf(i), el=row.querySelector('.ord');
+  const sk=!!st.skip[i.id], raw=ordRaw(i);
+  row.querySelector('.ordn').textContent=sk?'skip':(o===null?'–':o);
+  row.classList.toggle('skipped',sk);
+  const sb=row.querySelector('.skipb'); sb.style.display=(sk||(raw!==null&&raw>0))?'':'none'; sb.textContent=sk?'undo':'skip';
+  const u=modeOf(i)==='u', cc=cntCases(i);
+  row.querySelector('.mode').textContent='in '+unitOf(i)+' ⇄';
+  row.querySelector('.upcl').style.display=u?'':'none';
+  row.querySelector('.eq').textContent=(u&&cc!==null)?'= '+(+cc.toFixed(2))+' case':'';
+  el.classList.toggle('on',o!==null&&o>0);
+}
+function orderLines(){return ITEMS.map(i=>({i,q:ordOf(i)})).filter(x=>x.q>0);}
+function updTotals(){
+  const counted=ITEMS.filter(i=>cntOf(i)!==null).length;
+  $('#barfill').style.width=(100*counted/ITEMS.length)+'%';
+  $('#progtxt').textContent=`${counted} of ${ITEMS.length} counted`;
+  Object.keys(SECS).forEach(k=>{const l=ITEMS.filter(i=>i.sec===k); const e=$('#sc-'+k); if(e)e.textContent=`${l.filter(i=>cntOf(i)!==null).length}/${l.length}`;});
+  const L=orderLines(), tot=L.reduce((a,x)=>a+x.q*x.i.price,0);
+  $('#sumLines').textContent=counted===0?'Count items to build your order':`${L.length} item${L.length===1?'':'s'} to order`;
+  $('#sumTotal').textContent=counted===0?'':`about ${fmt(tot)} before tax`;
+  $('#review').disabled=L.length===0;
+  document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.day===st.day));
+  $('#sub').textContent=st.day==='tue'?'Tuesday delivery · place by Monday 12 PM':'Saturday delivery · place by Friday 12 PM';
+}
+function setCount(id,v){const i=byId[id]; if(v===null)delete st.cnt[id]; else st.cnt[id]=v; save(); updRow(i); updTotals();}
+
+const list=$('#list');
+list.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  const act=b.dataset.act;
+  if(act==='tog'){const k=b.closest('.sec').dataset.sec; st.closed[k]=!st.closed[k]; saveLocal(); b.closest('.sec').classList.toggle('closed',st.closed[k]); b.setAttribute('aria-expanded',!st.closed[k]); return;}
+  const row=b.closest('.row'); if(!row)return;
+  if(act==='rmitem'){
+    const i=byId[row.dataset.id]; if(!i)return;
+    if(!b._armed){b._armed=true; b.textContent='tap again to remove'; setTimeout(()=>{b._armed=false;b.textContent='remove from guide';},3000); return;}
+    st.custom=st.custom.filter(c=>c.id!==i.id); delete st.cnt[i.id]; delete st.par[i.id]; delete st.skip[i.id]; delete st.trig[i.id];
+    save(); syncCustom(); render(); return;
+  }
+  if(act==='skip'){ const i=byId[row.dataset.id]; if(st.skip[i.id])delete st.skip[i.id]; else st.skip[i.id]=true; save(); updRow(i); updTotals(); return; }
+  if(act==='mode'){
+    const i=byId[row.dataset.id], cur=cntOf(i), m=modeOf(i), inp=row.querySelector('.cnt');
+    if(cur!==null){ st.cnt[i.id]= m==='u' ? +(cur/upcOf(i)).toFixed(3) : Math.round(cur*upcOf(i)*100)/100; inp.value=st.cnt[i.id]; }
+    st.cm[i.id]= m==='u'?'c':'u'; save(); updRow(i); updTotals(); return;
+  }
+  const id=row.dataset.id, cur=cntOf(byId[id]), inp=row.querySelector('.cnt');
+  let v;
+  if(act==='inc') v=(cur===null?0:cur)+1; else v=Math.max(0,(cur===null?1:cur)-1);
+  inp.value=v; setCount(id,v);
+});
+list.addEventListener('input',e=>{
+  const row=e.target.closest('.row'); if(!row)return; const id=row.dataset.id;
+  if(e.target.classList.contains('cnt')){const t=e.target.value.trim(); setCount(id,t===''?null:num(t));}
+  if(e.target.classList.contains('upc')){const v=num(e.target.value); if(v!==null&&v>0){st.upc[id]=v; save(); updRow(byId[id]); updTotals();}}
+  if(e.target.classList.contains('trig')){const tx=e.target.value.trim(); const v=tx===''?0:num(tx); if(v!==null){st.trig[id]=v; save(); updRow(byId[id]); updTotals();}}
+  if(e.target.classList.contains('par')){const v=num(e.target.value); if(v!==null){st.par[id]=v; save(); updRow(byId[id]); updTotals();}}
+});
+document.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; st.day=b.dataset.day; save(); updTotals();});
+
+let clr=false, clrT;
+$('#clear').addEventListener('click',()=>{
+  const b=$('#clear');
+  if(!clr){clr=true; b.textContent='Tap again to clear all'; clrT=setTimeout(()=>{clr=false;b.textContent='Clear counts';},3000); return;}
+  clearTimeout(clrT); clr=false; b.textContent='Clear counts'; snapshot(); st.cnt={}; st.skip={}; save(); render();
+});
+
+function idTxt(id){return /^c-/.test(String(id))?'':' #'+id;}
+function sheetText(L,tot){
+  const day=st.day==='tue'?'Tuesday':'Saturday';
+  let t=`${day} order, about ${fmt(tot)} before tax\n`;
+  Object.keys(SECS).forEach(k=>{
+    const l=L.filter(x=>x.i.sec===k); if(!l.length)return;
+    t+=`\n${SECS[k].name}\n`;
+    l.forEach(x=>{t+=`${x.q} × ${x.i.name}${x.i.pack?' ('+x.i.pack+')':''}${idTxt(x.i.id)}\n`;});
+  });
+  return t;
+}
+function openSheet(){
+  histOpen=false;
+  snapshot();
+  const L=orderLines(), tot=L.reduce((a,x)=>a+x.q*x.i.price,0), big=L.filter(x=>x.i.big);
+  const day=st.day==='tue'?'Tuesday':'Saturday';
+  let h=`<h2>${day} order</h2><div class="sub">${L.length} items · about ${fmt(tot)} before tax</div>`;
+  if(big.length>=2) h+=`<div class="warnbox">${big.length} big-ticket items on this order (${fmt(big.reduce((a,x)=>a+x.q*x.i.price,0))}): ${big.map(x=>esc(x.i.name)).join(', ')}. If one can wait, move it to the other delivery to even out the week.</div>`;
+  else if(big.length===1) h+=`<div class="infobox">Big-ticket on this order: ${esc(big[0].i.name)} (${fmt(big[0].q*big[0].i.price)}).</div>`;
+  Object.keys(SECS).forEach(k=>{
+    const l=L.filter(x=>x.i.sec===k); if(!l.length)return;
+    h+=`<div class="sh-sec" style="--c:${SECS[k].c}">${SECS[k].name}</div>`;
+    l.forEach(x=>{h+=`<div class="sh-line"><div class="sh-q">${x.q}</div><div class="sh-n">${esc(x.i.name)}<small>${esc(x.i.pack)}${x.i.pack&&idTxt(x.i.id)?' · ':''}${idTxt(x.i.id).trim()}</small></div><div class="sh-p">${fmt2(x.q*x.i.price)}</div></div>`;});
+  });
+  const top=loadH()[0];
+  if(top)h+=`<label class="emg"><input type="checkbox" id="emgChk"${top.emerg?' checked':''}> Emergency order (outside Tue/Sat)</label>`;
+  h+=`<div class="actions"><button type="button" class="secondary" id="shClose">Back to count</button><button type="button" class="primary" id="shCopy">Copy order list</button></div>`;
+  const sh=$('#sheet'); sh.innerHTML=h; sh.hidden=false; sh.scrollTop=0;
+  $('#shClose').onclick=()=>{sh.hidden=true;};
+  sh.onclick=null; sh.onchange=null;
+  const ec=$('#emgChk'); if(ec&&top)ec.onchange=()=>{ mutEntry(String(top.id||top.ts),x=>{x.emerg=ec.checked; if(!ec.checked)delete x.note;}); };
+  $('#shCopy').onclick=()=>{
+    const text=sheetText(L,tot), b=$('#shCopy');
+    const done=()=>{b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy order list';},2000);};
+    const fb=()=>{const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); done();}catch(e){b.textContent='Copy failed';} document.body.removeChild(ta);};
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done,fb); else fb();
+  };
+}
+
+const HKEY='wc-order-history-v1';
+function loadH(){try{const h=JSON.parse(localStorage.getItem(HKEY)||'[]'); return Array.isArray(h)?h:[];}catch(e){return [];}}
+function saveH(h){try{localStorage.setItem(HKEY,JSON.stringify(h.slice(0,100)));}catch(e){}}
+function snapshot(){
+  const L=orderLines(); if(!L.length)return;
+  const lines=L.map(x=>({id:x.i.id,name:x.i.name,pack:x.i.pack,q:x.q,price:x.i.price,c:(cntCases(x.i)===null?null:+cntCases(x.i).toFixed(2))}));
+  const total=L.reduce((a,x)=>a+x.q*x.i.price,0);
+  const all=ITEMS.filter(i=>cntOf(i)!==null).map(i=>({id:i.id,name:i.name,c:+cntCases(i).toFixed(2),par:parOf(i),q:ordOf(i),skip:!!st.skip[i.id]}));
+  const sig=lines.map(l=>l.id+':'+l.q).join('|')+'#'+all.map(a=>a.id+':'+a.c+(a.skip?'s':'')).join('|');
+  const h=loadH(), now=Date.now();
+  const entry={id:String(now),ts:now,day:st.day,sig,total,lines,all};
+  let changed=null;
+  if(h.length&&h[0].day===st.day&&now-h[0].ts<3*3600e3){ if(h[0].sig!==sig){
+    const old=h[0]; entry.id=String(old.id||old.ts); entry.ts=old.ts;
+    if(old.emerg)entry.emerg=true; if(old.note)entry.note=old.note;
+    const man=(old.lines||[]).filter(l=>l.manual); entry.lines=entry.lines.concat(man); entry.total+=man.reduce((s,l)=>s+l.q*(l.price||0),0);
+    h[0]=entry; changed=entry; } }
+  else {h.unshift(entry); changed=entry;}
+  saveH(h);
+  if(changed)pushEntry(changed);
+}
+function hdate(ts){const d=new Date(ts); return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' · '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
+function elabel(e){return e.emerg?'Emergency order':(e.day==='tue'?'Tuesday':'Saturday')+' delivery';}
+function slug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40);}
+function mutEntry(eid,fn){
+  const h=loadH(), k=h.findIndex(x=>String(x.id||x.ts)===String(eid)); if(k<0)return null;
+  fn(h[k]); h[k].total=h[k].lines.reduce((a,l)=>a+l.q*(l.price||0),0);
+  saveH(h); pushEntry(h[k]); return h[k];
+}
+function histText(e){
+  let t=`${elabel(e)}, saved ${hdate(e.ts)}, about ${fmt(e.total)}\n${e.note?'Note: '+e.note+'\n':''}\n`;
+  e.lines.forEach(l=>{t+=`${l.q} × ${l.name}${l.pack?' ('+l.pack+')':''}${l.manual?' (added by hand)':idTxt(l.id)}\n`;});
+  return t;
+}
+var histOpenId=null;
+function openHistory(openId){
+  histOpen=true;
+  if(typeof openId==='string')histOpenId=openId;
+  const h=loadH(), sh=$('#sheet');
+  let o=`<h2>Past orders</h2><div class="sub">Saved automatically when you review an order or clear counts.</div>`;
+  if(!h.length) o+=`<div class="infobox">Nothing saved yet. Count some items and tap Review order, and it will show up here.</div>`;
+  h.forEach((e,k)=>{
+    const prev=h[k+1], eid=String(e.id||e.ts);
+    const rm=l=>l.manual?`<button type="button" class="rmb" data-hact="rm" data-id="${eid}" data-lid="${esc(l.id)}">remove</button>`:'';
+    o+=`<details class="hent${e.emerg?' emerg':''}" data-id="${eid}"${histOpenId===eid?' open':''}><summary><b>${hdate(e.ts)}${e.emerg?'<span class="chip">emergency</span>':''}</b><span>${e.emerg?'':elabel(e)+' · '}${e.lines.length} items ordered${e.all?' · '+e.all.length+' counted':''} · ${fmt(e.total)}</span></summary><div class="hbody">`;
+    o+=`<label class="emg"><input type="checkbox" data-hact="emerg" data-id="${eid}"${e.emerg?' checked':''}> Emergency order (outside Tue/Sat)</label>`;
+    if(e.emerg) o+=`<input class="enote" data-hact="note" data-id="${eid}" placeholder="What ran out, or why?" maxlength="200" value="${esc(e.note||'')}" aria-label="Why was this an emergency order">`;
+    if(prev){
+      const pm={}; prev.lines.forEach(l=>pm[l.id]=l);
+      const cm={}; e.lines.forEach(l=>cm[l.id]=l);
+      o+=`<div class="sub">Compared with the order before it (${hdate(prev.ts)}, ${fmt(prev.total)}, ${fmt(e.total-prev.total).replace('$-','-$')} difference)</div>`;
+      e.lines.forEach(l=>{
+        const p=pm[l.id]; const d=p?l.q-p.q:null;
+        const tag=p===undefined?'<span class="dl new">new</span>':(d===0?'<span class="dl">same</span>':`<span class="dl ${d>0?'up':'dn'}">${d>0?'+':''}${d}</span>`);
+        o+=`<div class="sh-line"><div class="sh-q">${l.q}</div><div class="sh-n">${esc(l.name)}<small>${l.manual?'added by hand · ':''}${p?'before: '+p.q:'not on the earlier order'}${l.c!==null&&l.c!==undefined?' · counted '+l.c+' case':''}</small>${rm(l)}</div>${tag}</div>`;
+      });
+      prev.lines.filter(l=>!cm[l.id]).forEach(l=>{
+        o+=`<div class="sh-line gone"><div class="sh-q">0</div><div class="sh-n">${esc(l.name)}<small>before: ${l.q}</small></div><span class="dl dn">-${l.q}</span></div>`;
+      });
+    } else {
+      e.lines.forEach(l=>{o+=`<div class="sh-line"><div class="sh-q">${l.q}</div><div class="sh-n">${esc(l.name)}<small>${l.manual?'added by hand':esc(l.pack)+(l.pack&&idTxt(l.id)?' · ':'')+idTxt(l.id).trim()}${l.c!==null&&l.c!==undefined?' · counted '+l.c+' case':''}</small>${rm(l)}</div><div class="sh-p">${fmt2(l.q*(l.price||0))}</div></div>`;});
+    }
+    o+=`<details class="addit"><summary>＋ Add an item we ordered</summary><div class="addform"><input class="an" placeholder="Item name, e.g. dissolvable labels" maxlength="80" aria-label="Item name"><input class="aq" inputmode="decimal" placeholder="cases" value="1" aria-label="Cases ordered"><input class="ap" inputmode="decimal" placeholder="$ per case" aria-label="Price per case"><button type="button" class="secondary" data-hact="add" data-id="${eid}">Add</button></div></details>`;
+    o+=`<div class="actions"><button type="button" class="secondary" data-hact="copy" data-id="${eid}">Copy list</button><button type="button" class="secondary" data-hact="del" data-id="${eid}">Delete</button></div></div></details>`;
+  });
+  o+=`<div class="sh-sec" style="--c:var(--muted)">Backup</div><div class="sub">Counts, pars, added items and every saved order, in one file.</div>`;
+  o+=`<div class="actions" style="margin-top:10px"><button type="button" class="secondary" id="bkDown">Download backup (JSON)</button><button type="button" class="secondary" id="bkUp">Restore from JSON</button></div>`;
+  o+=`<div class="actions"><button type="button" class="primary" id="hClose">Back to count</button></div>`;
+  sh.innerHTML=o; sh.hidden=false; if(typeof openId!=='string'||!histOpenId)sh.scrollTop=0;
+  $('#bkDown').onclick=downloadBackup;
+  $('#bkUp').onclick=()=>{
+    const b=$('#bkUp');
+    if(!b._armed){b._armed=true; b.textContent='Tap again: replaces everything'; setTimeout(()=>{b._armed=false;b.textContent='Restore from JSON';},4000); return;}
+    b._armed=false; b.textContent='Restore from JSON';
+    pickJSON(async o=>{ if(await restoreBackup(o)){histOpenId=null; openHistory('');} });
+  };
+  sh.querySelectorAll('details.hent').forEach(d=>d.addEventListener('toggle',()=>{ if(d.open)histOpenId=d.dataset.id; else if(histOpenId===d.dataset.id)histOpenId=null; }));
+  $('#hClose').onclick=()=>{histOpen=false;sh.hidden=true;};
+  sh.onclick=ev=>{
+    const b=ev.target.closest('button[data-hact]'); if(!b)return;
+    const act=b.dataset.hact, eid=b.dataset.id, cur=loadH(), e=cur.find(x=>String(x.id||x.ts)===eid); if(!e)return;
+    if(act==='del'){
+      if(!b._armed){b._armed=true; b.textContent='Tap again to delete'; setTimeout(()=>{b._armed=false;b.textContent='Delete';},3000); return;}
+      saveH(cur.filter(x=>x!==e)); delEntry(e); histOpenId=null; openHistory(''); return;
+    }
+    if(act==='rm'){ mutEntry(eid,x=>{x.lines=x.lines.filter(l=>l.id!==b.dataset.lid);}); openHistory(eid); return; }
+    if(act==='add'){
+      const f=b.closest('.addform'), name=f.querySelector('.an').value.trim(); if(!name){f.querySelector('.an').focus();return;}
+      const q=num(f.querySelector('.aq').value)||1, price=num(f.querySelector('.ap').value)||0;
+      mutEntry(eid,x=>{x.lines.push({id:'m-'+slug(name),name,pack:'',q,price,c:null,manual:true});});
+      openHistory(eid); return;
+    }
+    if(act==='copy'){
+      const text=histText(e);
+      const done=()=>{b.textContent='Copied'; setTimeout(()=>{b.textContent='Copy list';},2000);};
+      const fb=()=>{const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); done();}catch(er){b.textContent='Copy failed';} document.body.removeChild(ta);};
+      if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done,fb); else fb();
+    }
+  };
+  sh.onchange=ev=>{
+    const el=ev.target; if(!el.dataset||!el.dataset.hact)return;
+    if(el.dataset.hact==='emerg'){ mutEntry(el.dataset.id,x=>{x.emerg=el.checked; if(!el.checked)delete x.note;}); openHistory(el.dataset.id); }
+    if(el.dataset.hact==='note'){ mutEntry(el.dataset.id,x=>{x.note=el.value.trim().slice(0,200);}); }
+  };
+}
+
+function openAddItem(){
+  histOpen=false;
+  const sh=$('#sheet');
+  sh.innerHTML=`<h2>Add an item to the guide</h2><div class="sub">It joins the count sheet right away and syncs to your other devices.</div>
+  <div class="aform">
+    <label>Name<input id="ai-name" maxlength="80" placeholder="e.g. Dissolvable labels"></label>
+    <label>Where is it kept?<select id="ai-sec"><option value="walk">Walk-in cooler</option><option value="frz">Freezer</option><option value="dry">Dry storage</option><option value="sup" selected>Supplies</option></select></label>
+    <div class="arow"><label>Par (cases)<input id="ai-par" inputmode="decimal" value="1"></label><label>Price per case<input id="ai-price" inputmode="decimal" placeholder="optional"></label></div>
+    <label>Pack size<input id="ai-pack" maxlength="40" placeholder="optional, e.g. 6 × 500"></label>
+    <label>Shamrock item number<input id="ai-num" inputmode="numeric" maxlength="20" placeholder="optional"></label>
+    <div class="note" id="ai-err" style="color:var(--warn)"></div>
+  </div>
+  <div class="actions"><button type="button" class="secondary" id="ai-cancel">Cancel</button><button type="button" class="primary" id="ai-save">Add to guide</button></div>`;
+  sh.onclick=null; sh.onchange=null; sh.hidden=false; sh.scrollTop=0;
+  $('#ai-cancel').onclick=()=>{sh.hidden=true;};
+  $('#ai-save').onclick=()=>{
+    const name=$('#ai-name').value.trim(), err=$('#ai-err');
+    if(!name){err.textContent='Enter a name for the item.'; $('#ai-name').focus(); return;}
+    const num0=$('#ai-num').value.replace(/[^A-Za-z0-9]/g,'');
+    let id=num0||('c-'+slug(name)+'-'+Date.now().toString(36).slice(-4));
+    if(byId[id]){ if(num0){err.textContent='That item number is already in the guide.'; return;} id+='x'; }
+    const sec=$('#ai-sec').value, par=num($('#ai-par').value), price=num($('#ai-price').value);
+    st.custom.push({id,name,sec,par:par>0?par:1,price:price||0,pack:$('#ai-pack').value.trim()});
+    st.closed[sec]=false; save(); syncCustom(); render();
+    sh.hidden=true;
+    const row=document.querySelector(`.row[data-id="${id}"]`); if(row){row.scrollIntoView({block:'center'});}
+  };
+  setTimeout(()=>{const n=$('#ai-name'); if(n)n.focus();},50);
+}
+$('#addItem').addEventListener('click',openAddItem);
+$('#hist').addEventListener('click',openHistory);
+$('#review').addEventListener('click',openSheet);
+
+
+/* ---------- backup / restore ---------- */
+function stateData(){return {day:st.day,par:st.par,cnt:st.cnt,trig:st.trig,upc:st.upc,cm:st.cm,skip:st.skip,custom:st.custom,rev:st.lrev||Date.now(),by:devId};}
+function downloadBackup(){
+  const blob=new Blob([JSON.stringify({state:stateData(),history:loadH()},null,1)],{type:'application/json'});
+  const a=document.createElement('a'), d=new Date();
+  a.href=URL.createObjectURL(blob);
+  a.download='orders-backup-'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+'.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function pickJSON(cb){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json';
+  inp.onchange=()=>{const f=inp.files&&inp.files[0]; if(!f)return; f.text().then(t=>{let o; try{o=JSON.parse(t);}catch(e){alert('That file is not valid JSON.');return;} cb(o);});};
+  inp.click();
+}
+async function restoreBackup(o){
+  if(!o||typeof o!=='object'||!o.state||typeof o.state!=='object'||!Array.isArray(o.history)){alert('That file is not an order backup. It needs "state" and "history".');return false;}
+  const s=JSON.parse(JSON.stringify(o.state)), cl=x=>(x&&typeof x==='object'&&!Array.isArray(x))?x:{};
+  st.par=cl(s.par); st.cnt=cl(s.cnt); st.trig=cl(s.trig); st.upc=cl(s.upc); st.cm=cl(s.cm); st.skip=cl(s.skip);
+  st.custom=Array.isArray(s.custom)?s.custom:[];
+  if(s.day==='tue'||s.day==='sat')st.day=s.day;
+  const hist=JSON.parse(JSON.stringify(o.history)).filter(e=>e&&Array.isArray(e.lines)&&(e.id||e.ts)).sort((a,b)=>b.ts-a.ts).slice(0,100);
+  Object.keys(pendUp).forEach(k=>delete pendUp[k]); Object.keys(pendDel).forEach(k=>delete pendDel[k]);
+  saveH(hist); syncCustom(); render(); save();
+  if(!DB)return true;
+  setSync('pending');
+  try{
+    const keep=new Set(hist.map(e=>String(e.id||e.ts)));
+    const {data:rows,error:e1}=await sb.from('order_history').select('id'); if(e1)throw e1;
+    const gone=(rows||[]).map(r=>r.id).filter(id=>!keep.has(id));
+    if(gone.length){const {error}=await sb.from('order_history').delete().in('id',gone); if(error)throw error;}
+    if(hist.length){const {error}=await sb.from('order_history').upsert(hist.map(histRow),{onConflict:'owner,id'}); if(error)throw error;}
+    if(!writing&&!dirty)setSync('ok');
+  }catch(e){setSync('err');}
+  return true;
+}
+
+/* ---------- cross-device sync (Supabase) ---------- */
+const SUPABASE_URL='https://xsgyoovivlehtzrbytaz.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZ3lvb3ZpdmxlaHR6cmJ5dGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMDg2MzYsImV4cCI6MjA5Njg4NDYzNn0.6Kb0EnIJ2QmOxecYzbfMHskztPPglgQKS3K9wiCI8EI';
+const OWNER_EMAIL='caporalitm@gmail.com';
+// Own storage key so the floor app's Supabase client on this origin never picks up this login.
+const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{storageKey:'wc-orders-auth',persistSession:true,autoRefreshToken:true}}):null;
+var DB=null, histOpen=false, syncT=null, writing=false, dirty=false, synced=true, chan=null, started=false;
+const pendUp={}, pendDel={};
+var devId=(function(){try{var d=localStorage.getItem('wc-dev'); if(!d){d=Math.random().toString(36).slice(2,9); localStorage.setItem('wc-dev',d);} return d;}catch(e){return Math.random().toString(36).slice(2,9);}})();
+function setSync(s){
+  synced=(s==='ok');
+  const e=document.getElementById('syncTxt'); if(!e)return;
+  e.textContent = s==='ok'?'Synced across your devices':s==='pending'?'Syncing…':s==='err'?'Sync paused. Saved on this device.':'Saved on this device only';
+}
+function scheduleSync(){ if(!DB)return; setSync('pending'); clearTimeout(syncT); syncT=setTimeout(pushState,700); }
+async function pushState(){
+  if(!DB)return;
+  if(writing){dirty=true;return;}
+  writing=true; dirty=false;
+  try{
+    const {error}=await sb.from('order_state').upsert({owner:DB.uid,data:stateData(),updated_at:new Date().toISOString()},{onConflict:'owner'});
+    if(error)throw error;
+    if(!dirty)setSync('ok');
+  }catch(e){setSync('err');}
+  writing=false;
+  if(dirty)pushState();
+}
+function refreshInputs(){
+  const a=document.activeElement;
+  document.querySelectorAll('.row').forEach(row=>{
+    const i=byId[row.dataset.id]; if(!i)return;
+    const c=row.querySelector('.cnt'), p=row.querySelector('.par'), q=row.querySelector('.trig');
+    if(c&&c!==a){const v=cntOf(i); c.value=v===null?'':v;}
+    if(p&&p!==a)p.value=parOf(i);
+    if(q&&q!==a)q.value=trigOf(i)||'';
+    updRow(i);
+  });
+  updTotals();
+}
+function onRemoteState(d){
+  if(!d){ if(Object.keys(st.cnt).length||Object.keys(st.par).length||Object.keys(st.trig).length){ if(!st.lrev)st.lrev=Date.now(); pushState(); } else setSync('ok'); return; }
+  const rr=d.rev||0, lr=st.lrev||0;
+  if(rr===lr){ if(!writing)setSync('ok'); return; }
+  if(d.by===devId&&rr<lr)return; // stale echo of my own earlier write
+  if(rr>lr){
+    const cl=o=>JSON.parse(JSON.stringify(o||{}));
+    st.par=cl(d.par); st.cnt=cl(d.cnt); st.trig=cl(d.trig); st.upc=cl(d.upc); st.cm=cl(d.cm); st.skip=cl(d.skip);
+    const oldC=JSON.stringify(st.custom); st.custom=Array.isArray(d.custom)?JSON.parse(JSON.stringify(d.custom)):[];
+    if(JSON.stringify(st.custom)!==oldC){ syncCustom(); render(); }
+    if(d.day)st.day=d.day;
+    st.lrev=rr; saveLocal(); refreshInputs(); setSync('ok');
+  } else { pushState(); }
+}
+function histRow(e){return {owner:DB.uid,id:String(e.id||e.ts),ts:e.ts,data:Object.assign({},e,{id:String(e.id||e.ts)}),updated_at:new Date().toISOString()};}
+async function pushEntry(e){
+  if(!e)return; const id=String(e.id||e.ts); pendUp[id]=e; delete pendDel[id];
+  if(!DB)return;
+  try{
+    const {error}=await sb.from('order_history').upsert(histRow(e),{onConflict:'owner,id'}); if(error)throw error;
+    if(pendUp[id]===e)delete pendUp[id];
+    pruneHistory();
+  }catch(er){}
+}
+async function delEntry(e){
+  if(!e)return; const id=String(e.id||e.ts); pendDel[id]=1; delete pendUp[id];
+  if(!DB)return;
+  try{ const {error}=await sb.from('order_history').delete().eq('id',id); if(error)throw error; delete pendDel[id]; }catch(er){}
+}
+async function pruneHistory(){
+  try{
+    const {data,error}=await sb.from('order_history').select('id').order('ts',{ascending:false}).range(100,999);
+    if(error||!data||!data.length)return;
+    await sb.from('order_history').delete().in('id',data.map(r=>r.id));
+  }catch(e){}
+}
+function retryPending(){ Object.values(pendUp).forEach(pushEntry); Object.keys(pendDel).forEach(id=>delEntry({id})); }
+// Merge a remote history list with writes this device hasn't landed yet, then cache it.
+function applyHistory(remote){
+  const m={}; remote.forEach(e=>m[String(e.id||e.ts)]=e);
+  Object.keys(pendUp).forEach(id=>m[id]=pendUp[id]); Object.keys(pendDel).forEach(id=>delete m[id]);
+  const list=Object.values(m).sort((a,b)=>b.ts-a.ts).slice(0,100);
+  const changed=JSON.stringify(list)!==JSON.stringify(loadH());
+  saveH(list);
+  if(changed&&histOpen&&!$('#sheet').hidden)openHistory();
+}
+function onHistoryEvent(p){
+  const h=loadH();
+  if(p.eventType==='DELETE'){ const id=p.old&&p.old.id; if(!id)return; applyHistory(h.filter(e=>String(e.id||e.ts)!==id)); return; }
+  const n=p.new&&p.new.data; if(!n)return;
+  const e=JSON.parse(JSON.stringify(n)), id=String(e.id||e.ts);
+  applyHistory(h.filter(x=>String(x.id||x.ts)!==id).concat([e]));
+}
+var firstLoad=true;
+async function loadRemote(){
+  if(!DB)return;
+  try{
+    const [s,h]=await Promise.all([
+      sb.from('order_state').select('data').eq('owner',DB.uid).maybeSingle(),
+      sb.from('order_history').select('data').order('ts',{ascending:false}).limit(100)
+    ]);
+    if(s.error||h.error)throw (s.error||h.error);
+    if(!DB)return;
+    const remoteH=(h.data||[]).map(r=>JSON.parse(JSON.stringify(r.data)));
+    const remoteS=s.data&&s.data.data?JSON.parse(JSON.stringify(s.data.data)):null;
+    if(firstLoad){
+      firstLoad=false;
+      if(!remoteS&&!remoteH.length&&!loadH().length&&!Object.keys(st.cnt).length&&!Object.keys(st.par).length)showImportOffer();
+      // Seed remote history from this device only when the server has none.
+      if(!remoteH.length)loadH().forEach(pushEntry);
+    }
+    applyHistory(remoteH);
+    onRemoteState(remoteS);
+    retryPending();
+  }catch(e){setSync('err');}
+}
+function showImportOffer(){
+  const b=$('#importOffer'); b.hidden=false;
+  $('#importBtn').onclick=()=>pickJSON(async o=>{ if(await restoreBackup(o))b.hidden=true; });
+  $('#importNo').onclick=()=>{b.hidden=true;};
+}
+function startSync(uid){
+  DB={uid}; setSync('pending');
+  if(chan)sb.removeChannel(chan);
+  chan=sb.channel('orders-'+uid)
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_state',filter:'owner=eq.'+uid},p=>{ if(p.new&&p.new.data)onRemoteState(JSON.parse(JSON.stringify(p.new.data))); })
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_history',filter:'owner=eq.'+uid},onHistoryEvent)
+    .subscribe(status=>{ if(status==='SUBSCRIBED')loadRemote(); else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')setSync('err'); });
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&DB)loadRemote(); });
+window.addEventListener('online',()=>{ if(DB){ loadRemote(); if(!synced)scheduleSync(); } });
+
+/* ---------- PIN lock ---------- */
+var pin='', busy=false;
+function showLock(msg){
+  document.body.classList.add('locked'); $('#lock').hidden=false;
+  pin=''; drawPin(); $('#pinErr').textContent=msg||'';
+}
+function drawPin(){ $('#pinDots').textContent=pin?'•'.repeat(pin.length):''; $('#pinGo').disabled=!pin||busy; }
+function unlocked(user){
+  $('#lock').hidden=true; document.body.classList.remove('locked');
+  if(!started){started=true; render();}
+  startSync(user.id);
+}
+async function tryPin(){
+  if(!pin||busy)return;
+  if(!sb){$('#pinErr').textContent='Could not load the sign-in library. Check your connection and reload.';return;}
+  busy=true; drawPin(); $('#pinErr').textContent='Checking…';
+  let res;
+  try{res=await sb.auth.signInWithPassword({email:OWNER_EMAIL,password:pin});}catch(e){res={error:e,data:{}};}
+  busy=false;
+  const error=res.error, session=res.data&&res.data.session;
+  if(error||!session){
+    const net=!navigator.onLine||/fetch|network/i.test(error&&error.message||'');
+    pin=''; drawPin();
+    $('#pinErr').textContent=net?'Can’t reach the server. Check your connection.':(error&&error.status===429?'Too many tries. Wait a minute and try again.':'Wrong PIN');
+    return;
+  }
+  pin=''; drawPin(); $('#pinErr').textContent='';
+  unlocked(session.user);
+}
+$('#pad').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b||busy)return;
+  if(b.dataset.k==='del')pin=pin.slice(0,-1); else if(b.dataset.k==='go'){tryPin();return;} else if(pin.length<12)pin+=b.dataset.k;
+  $('#pinErr').textContent=''; drawPin();
+});
+document.addEventListener('keydown',e=>{
+  if($('#lock').hidden||busy)return;
+  if(/^[0-9]$/.test(e.key)&&pin.length<12){pin+=e.key; $('#pinErr').textContent=''; drawPin();}
+  else if(e.key==='Backspace'){pin=pin.slice(0,-1); drawPin();}
+  else if(e.key==='Enter')tryPin();
+});
+let lockArm=false, lockT;
+$('#lockBtn').addEventListener('click',async()=>{
+  const b=$('#lockBtn');
+  if(!synced&&!lockArm){lockArm=true; b.textContent='Not synced yet. Tap again to lock'; lockT=setTimeout(()=>{lockArm=false;b.textContent='Lock';},4000); return;}
+  clearTimeout(lockT);
+  if(chan){sb.removeChannel(chan); chan=null;}
+  DB=null;
+  try{await sb.auth.signOut();}catch(e){}
+  // Locking also wipes this device's cached counts and history so nothing shows until the PIN is entered again.
+  try{localStorage.removeItem(KEY); localStorage.removeItem(HKEY);}catch(e){}
+  location.reload();
+});
+(async function initAuth(){
+  if(!sb){showLock('Could not load the sign-in library. Check your connection and reload.');return;}
+  sb.auth.onAuthStateChange((ev,session)=>{ if(ev==='SIGNED_OUT'&&started&&!session&&DB){ if(chan){sb.removeChannel(chan);chan=null;} DB=null; setSync('none'); showLock('Signed out. Enter your PIN.'); } });
+  const {data}=await sb.auth.getSession();
+  if(data&&data.session)unlocked(data.session.user); else showLock();
+})();
+</script>
+</body>
+</html>
